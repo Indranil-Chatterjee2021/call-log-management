@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from db_config import get_db_connection
 
-from .base import CallLogRepository, CallLogRecord, DateRange, MasterRecord
+from .base import CallLogRepository, CallLogRecord, DateRange, MasterRecord, UserRecord
 
 
 def _normalize_str(v: Any) -> Optional[str]:
@@ -343,6 +343,223 @@ class MSSQLRepository(CallLogRepository):
                     }
                 )
             return out
+        finally:
+            cursor.close()
+            conn.close()
+
+    # ---- User Management ----
+    def user_list(self) -> List[UserRecord]:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT UserId, Username, Password, CreatedDate
+                FROM [dbo].[Users]
+                ORDER BY UserId
+                """
+            )
+            rows = cursor.fetchall()
+            records: List[UserRecord] = []
+            for r in rows:
+                records.append({
+                    "id": str(r[0]),
+                    "UserId": r[0],
+                    "username": r[1],
+                    "password": r[2],
+                    "CreatedDate": r[3],
+                })
+            return records
+        finally:
+            cursor.close()
+            conn.close()
+
+    def user_get(self, user_id: str) -> Optional[UserRecord]:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT UserId, Username, Password, CreatedDate
+                FROM [dbo].[Users]
+                WHERE UserId = ?
+                """,
+                int(user_id),
+            )
+            r = cursor.fetchone()
+            if not r:
+                return None
+            return {
+                "id": str(r[0]),
+                "UserId": r[0],
+                "username": r[1],
+                "password": r[2],
+                "CreatedDate": r[3],
+            }
+        finally:
+            cursor.close()
+            conn.close()
+
+    def user_get_by_username(self, username: str) -> Optional[UserRecord]:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT UserId, Username, Password, CreatedDate
+                FROM [dbo].[Users]
+                WHERE Username = ?
+                """,
+                username,
+            )
+            r = cursor.fetchone()
+            if not r:
+                return None
+            return {
+                "id": str(r[0]),
+                "UserId": r[0],
+                "username": r[1],
+                "password": r[2],
+                "CreatedDate": r[3],
+            }
+        finally:
+            cursor.close()
+            conn.close()
+
+    def user_create(self, record: UserRecord) -> str:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO [dbo].[Users] (Username, Password, CreatedDate)
+                OUTPUT INSERTED.UserId
+                VALUES (?, ?, GETDATE())
+                """,
+                record.get("username"),
+                record.get("password"),
+            )
+            new_id = cursor.fetchone()[0]
+            conn.commit()
+            return str(new_id)
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+    def user_update(self, user_id: str, record: UserRecord) -> None:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            if "password" in record:
+                cursor.execute(
+                    """
+                    UPDATE [dbo].[Users]
+                    SET Password = ?, UpdatedDate = GETDATE()
+                    WHERE UserId = ?
+                    """,
+                    record.get("password"),
+                    int(user_id),
+                )
+                conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+    def user_delete(self, user_id: str) -> None:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM [dbo].[Users] WHERE UserId = ?", int(user_id))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+    # ---- Email Configuration ----
+    def email_config_get(self) -> Optional[Dict[str, Any]]:
+        """Get email configuration from database."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT SmtpServer, SmtpPort, SmtpUser, SmtpPassword
+                FROM [dbo].[EmailConfig]
+                WHERE ConfigId = 1
+                """
+            )
+            r = cursor.fetchone()
+            if not r:
+                return None
+            return {
+                "smtp_server": r[0],
+                "smtp_port": r[1],
+                "smtp_user": r[2],
+                "smtp_password": r[3],
+            }
+        finally:
+            cursor.close()
+            conn.close()
+
+    def email_config_save(self, config: Dict[str, Any]) -> None:
+        """Save email configuration to database."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            # Check if config exists
+            cursor.execute("SELECT ConfigId FROM [dbo].[EmailConfig] WHERE ConfigId = 1")
+            exists = cursor.fetchone() is not None
+            
+            if exists:
+                cursor.execute(
+                    """
+                    UPDATE [dbo].[EmailConfig]
+                    SET SmtpServer = ?, SmtpPort = ?, SmtpUser = ?, SmtpPassword = ?, UpdatedDate = GETDATE()
+                    WHERE ConfigId = 1
+                    """,
+                    config.get("smtp_server"),
+                    config.get("smtp_port"),
+                    config.get("smtp_user"),
+                    config.get("smtp_password"),
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO [dbo].[EmailConfig] (ConfigId, SmtpServer, SmtpPort, SmtpUser, SmtpPassword, CreatedDate)
+                    VALUES (1, ?, ?, ?, ?, GETDATE())
+                    """,
+                    config.get("smtp_server"),
+                    config.get("smtp_port"),
+                    config.get("smtp_user"),
+                    config.get("smtp_password"),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
+
+    def email_config_delete(self) -> None:
+        """Delete email configuration from database."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM [dbo].[EmailConfig] WHERE ConfigId = 1")
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             cursor.close()
             conn.close()

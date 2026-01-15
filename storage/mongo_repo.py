@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from pymongo import ASCENDING, MongoClient
 from pymongo.collection import Collection
 
-from .base import CallLogRepository, CallLogRecord, DateRange, MasterRecord
+from .base import CallLogRepository, CallLogRecord, DateRange, MasterRecord, UserRecord
 
 
 def _normalize_str(v: Any) -> Optional[str]:
@@ -22,10 +22,12 @@ class MongoRepository(CallLogRepository):
         self._db = self._client[db_name]
         self._master: Collection = self._db["master"]
         self._calllog: Collection = self._db["callLogEntries"]
+        self._users: Collection = self._db["users"]
 
         # Ensure indexes
         self._master.create_index([("MobileNo", ASCENDING)], unique=True)
         self._calllog.create_index([("Date", ASCENDING)])
+        self._users.create_index([("username", ASCENDING)], unique=True)
 
     def close(self) -> None:
         """
@@ -94,6 +96,73 @@ class MongoRepository(CallLogRepository):
                 query["Date"]["$lte"] = date_range.end
         docs = list(self._calllog.find(query).sort("Date", -1))
         return [_doc_to_calllog(d) for d in docs]
+
+    # ---- User Management ----
+    def user_list(self) -> List[UserRecord]:
+        docs = list(self._users.find({}, {"_id": 1, "username": 1, "CreatedDate": 1}))
+        return [_doc_to_user(d) for d in docs]
+
+    def user_get(self, user_id: str) -> Optional[UserRecord]:
+        from bson import ObjectId
+        doc = self._users.find_one({"_id": ObjectId(user_id)})
+        return _doc_to_user(doc) if doc else None
+
+    def user_get_by_username(self, username: str) -> Optional[UserRecord]:
+        doc = self._users.find_one({"username": username})
+        return _doc_to_user(doc) if doc else None
+
+    def user_create(self, record: UserRecord) -> str:
+        doc = {
+            "username": record.get("username"),
+            "password": record.get("password"),
+            "CreatedDate": datetime.utcnow(),
+        }
+        res = self._users.insert_one(doc)
+        return str(res.inserted_id)
+
+    def user_update(self, user_id: str, record: UserRecord) -> None:
+        from bson import ObjectId
+        update_data = {}
+        if "password" in record:
+            update_data["password"] = record["password"]
+        if update_data:
+            update_data["UpdatedDate"] = datetime.utcnow()
+            self._users.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
+
+    def user_delete(self, user_id: str) -> None:
+        from bson import ObjectId
+        self._users.delete_one({"_id": ObjectId(user_id)})
+
+    # ---- Email Configuration ----
+    def email_config_get(self) -> Optional[Dict[str, Any]]:
+        """Get email configuration from database."""
+        doc = self._db["emailConfig"].find_one({"_id": "email_settings"})
+        if doc:
+            return {
+                "smtp_server": doc.get("smtp_server"),
+                "smtp_port": doc.get("smtp_port"),
+                "smtp_user": doc.get("smtp_user"),
+                "smtp_password": doc.get("smtp_password"),
+            }
+        return None
+
+    def email_config_save(self, config: Dict[str, Any]) -> None:
+        """Save email configuration to database."""
+        self._db["emailConfig"].update_one(
+            {"_id": "email_settings"},
+            {"$set": {
+                "smtp_server": config.get("smtp_server"),
+                "smtp_port": config.get("smtp_port"),
+                "smtp_user": config.get("smtp_user"),
+                "smtp_password": config.get("smtp_password"),
+                "UpdatedDate": datetime.utcnow()
+            }},
+            upsert=True
+        )
+
+    def email_config_delete(self) -> None:
+        """Delete email configuration from database."""
+        self._db["emailConfig"].delete_one({"_id": "email_settings"})
 
 
 _MASTER_FIELDS = [
@@ -166,3 +235,14 @@ def _doc_to_calllog(doc: Dict[str, Any]) -> CallLogRecord:
     for k in ["Date", *_CALLLOG_TEXT_FIELDS]:
         out[k] = doc.get(k)
     return out
+
+
+def _doc_to_user(doc: Dict[str, Any]) -> UserRecord:
+    if not doc:
+        return {}
+    return {
+        "id": str(doc.get("_id")),
+        "username": doc.get("username"),
+        "password": doc.get("password"),
+        "CreatedDate": doc.get("CreatedDate"),
+    }

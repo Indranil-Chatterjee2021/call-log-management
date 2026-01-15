@@ -27,7 +27,7 @@ header[data-testid="stHeader"] {
     color: #262730;
     text-align: center;
     padding: 10px 0;
-    font-size: 14px;
+    font-size: 16px;
     border-top: 1px solid #e0e0e0;
     z-index: 999;
 }
@@ -95,4 +95,14 @@ div[data-testid="stFormSubmitButton"] button {
     align-items: flex-end;
     height: 100%;
     padding-bottom: 1px;
+}
+
+/* 8. Tab Labels - Increase Font Size */
+button[data-baseweb="tab"] {
+    font-size: 16px !important;
+    font-weight: 500 !important;
+}
+
+button[data-baseweb="tab"] > div {
+    font-size: 16px !important;
 }
