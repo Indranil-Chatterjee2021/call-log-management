@@ -1,0 +1,33 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Protocol
+
+
+MasterRecord = Dict[str, Any]
+CallLogRecord = Dict[str, Any]
+
+
+@dataclass(frozen=True)
+class DateRange:
+    start: Optional[datetime] = None
+    end: Optional[datetime] = None
+
+
+class CallLogRepository(Protocol):
+    # ---- Master ----
+    def master_list(self) -> List[MasterRecord]: ...
+    def master_get(self, record_id: str) -> Optional[MasterRecord]: ...
+    def master_get_by_mobile(self, mobile_no: str) -> Optional[MasterRecord]: ...
+    def master_create(self, record: MasterRecord) -> str: ...
+    def master_update(self, record_id: str, record: MasterRecord) -> None: ...
+    def master_delete(self, record_id: str) -> None: ...
+    def master_replace_all(self, records: List[MasterRecord]) -> int: ...
+
+    # ---- Call Log ----
+    def calllog_create(self, record: CallLogRecord) -> str: ...
+    def calllog_list(self, date_range: DateRange) -> List[CallLogRecord]: ...
+
+    # ---- Lifecycle (optional) ----
+    def close(self) -> None: ...

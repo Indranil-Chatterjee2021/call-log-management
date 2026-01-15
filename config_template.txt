@@ -1,0 +1,23 @@
+# Database Configuration Template
+# Copy this file to .env and fill in your database credentials
+#
+# Select backend:
+# - DB_BACKEND=mssql   (default)
+# - DB_BACKEND=mongodb
+
+DB_BACKEND=mssql
+
+DB_SERVER=localhost
+DB_NAME=CallLogDB
+DB_USER=sa
+DB_PASSWORD=your_password_here
+DB_DRIVER={ODBC Driver 17 for SQL Server}
+
+# MongoDB (used only when DB_BACKEND=mongodb)
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB=CallLogDB
+
+# Instructions:
+# 1. Copy this file and rename it to .env
+# 2. Update the values above with your actual database credentials
+# 3. Make sure .env is in .gitignore to keep credentials secure

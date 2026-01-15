@@ -1,0 +1,98 @@
+/* 1. Reset & Global Header/Footer */
+header[data-testid="stHeader"] {
+    display: none;
+}
+
+.title-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(90deg, #1f77b4 0%, #2ca02c 100%);
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    z-index: 1000;
+}
+
+.footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: #f0f2f6;
+    color: #262730;
+    text-align: center;
+    padding: 10px 0;
+    font-size: 14px;
+    border-top: 1px solid #e0e0e0;
+    z-index: 999;
+}
+
+/* 2. CENTER THE MAIN CONTENT AREA */
+.main .block-container {
+    padding-top: 110px;
+    padding-bottom: 100px;
+    max-width: 1000px !important; 
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* 3. Navigation Centering */
+.stRadio {
+    margin-top: -15px;
+    text-align: center;
+}
+.stRadio > div {
+    justify-content: center;
+}
+
+/* 4. Input Symmetry */
+div[data-testid="stTextInput"] > div,
+div[data-testid="stSelectbox"] > div,
+div[data-testid="stDateInput"] > div {
+    width: 100% !important;
+}
+
+/* 5. FORM SUBMIT BUTTONS (Add Record / Update Record) */
+div[data-testid="stFormSubmitButton"] button {
+    background-color: #2ca02c !important; /* Green */
+    color: white !important;
+    border: none !important;
+    padding: 0.5rem 2rem !important;
+    font-weight: bold !important;
+    width: 200px !important; /* Fixed width looks cleaner */
+    transition: 0.3s;
+}
+
+/* 6. STANDARD BUTTONS (Auto-fill / Delete) */
+
+/* Blue Auto-fill Button Fix */
+.autofill-btn {
+    background-color: #1f77b4 !important; /* Blue */
+    color: white !important;
+    border: none !important;
+    font-weight: bold !important;
+    margin-top: 28px !important; /* This pushes the button down to align with input */
+    width: 100% !important;
+}
+
+/* Red Delete Button Fix */
+.delete-btn, div[data-testid="stButton"] button {
+    background-color: #d32f2f !important; /* Red */
+    color: white !important;
+    border: none !important;
+    font-weight: bold !important;
+    width: 200px !important;
+}
+
+/* 7. Vertical Alignment for Auto-fill Row */
+.auto-fill-wrapper {
+    display: flex;
+    align-items: flex-end;
+    height: 100%;
+    padding-bottom: 1px;
+}
