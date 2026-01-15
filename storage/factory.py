@@ -29,7 +29,7 @@ def get_repository(
 
     if backend in {"mongodb", "mongo"}:
         mongo_uri = mongo_uri_override or os.getenv("MONGO_URI", "mongodb://localhost:27017")
-        mongo_db = mongo_db_override or os.getenv("MONGO_DB", "CallLogDB")
+        mongo_db = mongo_db_override or os.getenv("MONGO_DB", "call-logs")
         from .mongo_repo import MongoRepository
 
         return MongoRepository(mongo_uri=mongo_uri, db_name=mongo_db)

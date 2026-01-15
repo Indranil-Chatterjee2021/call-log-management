@@ -8,14 +8,14 @@
 DB_BACKEND=mssql
 
 DB_SERVER=localhost
-DB_NAME=CallLogDB
+DB_NAME=CALLLOG
 DB_USER=sa
 DB_PASSWORD=your_password_here
 DB_DRIVER={ODBC Driver 17 for SQL Server}
 
 # MongoDB (used only when DB_BACKEND=mongodb)
 MONGO_URI=mongodb://localhost:27017
-MONGO_DB=CallLogDB
+MONGO_DB=call-logs
 
 # Instructions:
 # 1. Copy this file and rename it to .env
