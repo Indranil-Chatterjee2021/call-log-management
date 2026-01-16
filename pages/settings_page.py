@@ -5,6 +5,10 @@ Handles database backend configuration (MSSQL/MongoDB)
 import streamlit as st
 from urllib.parse import urlparse, urlunparse, quote_plus
 import re
+import os
+import json
+from pathlib import Path
+from datetime import datetime
 
 from settings_store import (
     AppSettings,
@@ -62,7 +66,11 @@ def render_settings_page(is_cloud: bool, set_active_repo_func, save_settings_fun
             _render_mongodb_section(set_active_repo_func, save_settings_func)
 
     st.divider()
-    
+
+    # Quick check for .db_config.json in the app working directory (useful on cloud)
+    if st.button("Check .db_config.json"):
+        _check_db_config()
+
     # Email Configuration Section (only if backend is active)
     if st.session_state.active_repo is not None:
         _render_email_config_section()
@@ -170,9 +178,10 @@ def _render_mongodb_section(set_active_repo_func, save_settings_func):
                 else:
                     app_settings = AppSettings(backend="mongodb", mssql=None, mongodb=mongo_settings)
                     # Only save settings if this is first time setup
+                    IS_STREAMLIT_CLOUD = os.getenv("IS_STREAMLIT_CLOUD", "false").lower() == "true"
                     if st.session_state.active_repo is None:
                         save_settings_func(app_settings)  # stored into appConfig collection
-                    save_bootstrap(app_settings)  # local bootstrap for next startup
+                    if IS_STREAMLIT_CLOUD: save_bootstrap(app_settings)  # local bootstrap for next startup
                     set_active_repo_func("mongodb", mongo_uri=mongo_settings.uri, mongo_db=mongo_settings.database)
                     st.success("Database connected! Please login to continue.")
                     st.rerun()
@@ -270,6 +279,39 @@ def _render_email_config_section():
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Error deleting config: {str(e)}")
+
+
+def _check_db_config():
+    """Check for `.db_config.json` in the working directory and show a redacted summary.
+
+    This is safe to leave in production: values that look like passwords/secrets are redacted.
+    """
+    p = Path(".db_config.json")
+    if not p.exists():
+        st.info("`.db_config.json` not found in application working directory.")
+        return
+
+    try:
+        stat = p.stat()
+        st.success("`.db_config.json` exists")
+        st.write({
+            "path": str(p),
+            "size_bytes": stat.st_size,
+            "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+        })
+
+        # Show keys but mask likely secrets
+        data = json.loads(p.read_text())
+        masked = {}
+        for k, v in (data.items() if isinstance(data, dict) else []):
+            lk = k.lower()
+            if any(s in lk for s in ("password", "secret", "pwd", "token", "key")):
+                masked[k] = "⛔ REDACTED ⛔"
+            else:
+                masked[k] = v
+        st.json(masked)
+    except Exception as e:
+        st.error(f"Could not read/parse `.db_config.json`: {e}")
 
 def _encode_mongo_uri(uri: str):
         """Validate and return (encoded_uri, error_message).
