@@ -150,7 +150,7 @@ def main():
         current_date = datetime.now().strftime("%B %d, %Y")
         st.markdown(f"""
             <div class="footer">
-                <p style="margin: 0;">Developed by <b>Indranil Chatterjee</b> | Version 1.0.0 | Date: {current_date}</p>
+                <p style="margin: 0;">Developed by <b>Indranil Chatterjee</b> | Version 1.0.0 | Today's Date: {current_date}</p>
             </div>
         """, unsafe_allow_html=True)
         st.stop()
@@ -209,7 +209,18 @@ def main():
         st.session_state.current_user = None
         st.session_state.bootstrap_attempted = True  # avoid immediate auto-bootstrapping in same session
         st.session_state.logged_out = True
-        del st.session_state.current_page_index  # Remove page index so it doesn't interfere
+        # Remove UI widget values so they don't reappear after logout/refresh
+        for k in [
+            "login_username", "login_password",
+            "reg_username", "reg_password", "reg_password_confirm",
+            "reset_username", "reset_new_password", "reset_confirm_password",
+        ]:
+            if k in st.session_state:
+                del st.session_state[k]
+
+        # Remove page index if present
+        if "current_page_index" in st.session_state:
+            del st.session_state.current_page_index  # Remove page index so it doesn't interfere
         st.rerun()
     
     # Footer
