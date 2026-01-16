@@ -17,3 +17,4 @@ ENV/
 *.sqlite3
 *.json
 *.xlsx
+.spec
