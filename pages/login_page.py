@@ -113,6 +113,13 @@ def _render_login_tab(repo):
                         save_bootstrap(bootstrap_config)
                     
                     st.success(message)
+                    # After login, navigate to Master Data Management (or Call Log Entry
+                    # if master data already exists). This ensures the user lands on the
+                    # appropriate page instead of remaining on Settings.
+                    if st.session_state.get("master_data_exists"):
+                        st.session_state.current_page_index = 3  # Call Log Entry
+                    else:
+                        st.session_state.current_page_index = 1  # Master Data Management
                     st.rerun()
                 else:
                     st.error(message)

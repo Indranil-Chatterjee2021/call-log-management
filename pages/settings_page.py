@@ -67,9 +67,13 @@ def render_settings_page(is_cloud: bool, set_active_repo_func, save_settings_fun
 
     st.divider()
 
-    # Quick check for .db_config.json in the app working directory (useful on cloud)
-    if st.button("Check .db_config.json"):
-        _check_db_config()
+    # Show presence of .db_config.json in working directory (useful on cloud)
+    try:
+        if Path(".db_config.json").exists():
+            st.info("`.db_config.json` found in application working directory.")
+    except Exception:
+        # Non-fatal: ignore filesystem errors in restrictive environments
+        pass
 
     # Email Configuration Section (only if backend is active)
     if st.session_state.active_repo is not None:
