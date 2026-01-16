@@ -156,7 +156,7 @@ def _render_mongodb_section(set_active_repo_func, save_settings_func):
         placeholder="mongodb://localhost:27017",
         type="password",
     )
-    mongo_db = st.text_input("Mongo Database *", value="call-logs", disabled=True)
+    mongo_db = st.text_input("Enter Mongo Database Name *", value="", disabled=False)
 
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
