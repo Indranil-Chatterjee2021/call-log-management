@@ -75,34 +75,6 @@ def render_settings_page(is_cloud: bool, set_active_repo_func, save_settings_fun
         # Non-fatal: ignore filesystem errors in restrictive environments
         pass
 
-    # Allow users to explicitly load the server-saved bootstrap configuration.
-    # We do this only on explicit user action because the server-saved config
-    # is shared across all sessions and can lead to different users connecting
-    # to the same database unintentionally.
-    try:
-        from bootstrap_config import load_bootstrap
-        if st.button("Load saved server config (if any)", type="secondary"):
-            prev = load_bootstrap()
-            if not prev:
-                st.info("No saved server config found.")
-            else:
-                # Show summary (redacted) and let user activate
-                st.success(f"Found saved backend: {prev.backend}")
-                if st.button("Activate saved server config", type="primary"):
-                    if prev.backend == "mssql" and prev.mssql:
-                        set_active_repo_func("mssql")
-                        save_settings_func(prev)
-                        st.success("Server config activated for this session. Please login if required.")
-                        st.rerun()
-                    elif prev.backend == "mongodb" and prev.mongodb:
-                        set_active_repo_func("mongodb", mongo_uri=prev.mongodb.uri, mongo_db=prev.mongodb.database)
-                        save_settings_func(prev)
-                        st.success("Server config activated for this session. Please login if required.")
-                        st.rerun()
-    except Exception:
-        # Non-fatal if bootstrap module can't be loaded in restricted environments
-        pass
-
     # Email Configuration Section (only if backend is active)
     if st.session_state.active_repo is not None:
         _render_email_config_section()
