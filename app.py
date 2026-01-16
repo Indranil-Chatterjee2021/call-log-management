@@ -15,6 +15,7 @@ from pages.login_page import render_login_page
 from pages.master_data_page import render_master_data_page
 from pages.call_log_page import render_call_log_page
 from pages.reports_page import render_reports_page
+from pages.misc_types_page import render_misc_types_page
 
 
 def is_streamlit_cloud() -> bool:
@@ -60,10 +61,14 @@ def initialize_session_state():
         st.session_state.authenticated = False
     if "current_user" not in st.session_state:
         st.session_state.current_user = None
-    if 'dropdowns' not in st.session_state:
-        st.session_state.dropdowns = get_dropdown_values()
     if 'master_data_exists' not in st.session_state:
         st.session_state.master_data_exists = False
+    # Initialize dropdowns from DB when repo is available
+    if 'dropdowns' not in st.session_state:
+        if st.session_state.active_repo is not None:
+            st.session_state.dropdowns = get_dropdown_values(st.session_state.active_repo)
+        else:
+            st.session_state.dropdowns = get_dropdown_values()
 
 
 def auto_bootstrap_connection():
@@ -78,15 +83,23 @@ def auto_bootstrap_connection():
                 if ok:
                     _set_active_repo("mssql")
                     st.session_state.active_backend = "mssql"
+                    # Restore authentication state if it exists
+                    if prev.authenticated_user:
+                        st.session_state.authenticated = True
+                        st.session_state.current_user = prev.authenticated_user
             elif prev.backend == "mongodb" and prev.mongodb:
                 ok, _ = test_mongo_connection(prev.mongodb)
                 if ok:
                     _set_active_repo("mongodb", mongo_uri=prev.mongodb.uri, mongo_db=prev.mongodb.database)
                     st.session_state.active_backend = "mongodb"
+                    # Restore authentication state if it exists
+                    if prev.authenticated_user:
+                        st.session_state.authenticated = True
+                        st.session_state.current_user = prev.authenticated_user
 
 
-def auto_import_master_data():
-    """Auto-import master data on first run if database is empty."""
+def check_master_data_exists():
+    """Check if master data exists in the database."""
     if st.session_state.active_repo is not None:
         if "master_data_checked" not in st.session_state:
             st.session_state.master_data_checked = True
@@ -94,28 +107,12 @@ def auto_import_master_data():
                 repo = st.session_state.active_repo
                 master_records = repo.master_list()
                 record_count = len(master_records)
+                st.session_state.master_data_exists = record_count > 0
                 
-                if record_count == 0:
-                    # Import from Excel automatically
-                    from init_database import import_master_data
-                    with st.spinner("Importing master data from Excel sheet..."):
-                        result = import_master_data(repo)
-                    
-                    # Show import statistics
-                    st.success(f"✅ Master data imported successfully! {result['imported']} records imported.")
-                    if result['duplicates'] > 0:
-                        with st.expander(f"⚠️ {result['duplicates']} duplicate mobile numbers found and skipped"):
-                            st.write("Duplicate Mobile Numbers:")
-                            st.write(result['duplicate_numbers'])
-                    st.info("You can now manage master data through the Master Data Management page.")
-                    st.session_state.master_data_exists = True
-                else:
-                    st.session_state.master_data_exists = True
-            except FileNotFoundError:
-                st.warning("⚠️ Excel file 'Verma R Master.xlsx' not found. Please add master data manually.")
+                # Also refresh dropdowns from DB
+                st.session_state.dropdowns = get_dropdown_values(repo)
             except Exception as e:
-                st.error(f"⚠️ Error with master data: {e}")
-                st.info("If you need to reimport, please clear the Master collection first from Master Data Management page.")
+                st.session_state.master_data_exists = False
 
 
 def load_custom_css():
@@ -135,40 +132,69 @@ def main():
     # Auto-bootstrap from saved config
     auto_bootstrap_connection()
     
-    # Auto-import master data if needed
-    auto_import_master_data()
+    # Check if master data exists (no auto-import)
+    check_master_data_exists()
     
     # Load custom CSS
     load_custom_css()
+    
+    # Create title bar with embedded navigation using HTML
+    st.markdown('<div class="title-bar">📞  Implementors Call Log Management System  📞</div>', unsafe_allow_html=True)
+    
+    # Check for logged out state first - show logged out screen without navigation
+    if st.session_state.get("logged_out") is True:
+        st.divider()
+        st.title("Logged out")
+        st.info("This session is closed. You can safely close this browser tab.")
+        # Footer
+        current_date = datetime.now().strftime("%B %d, %Y")
+        st.markdown(f"""
+            <div class="footer">
+                <p style="margin: 0;">Developed by <b>Indranil Chatterjee</b> | Version 1.0.0 | Date: {current_date}</p>
+            </div>
+        """, unsafe_allow_html=True)
+        st.stop()
     
     # Authentication check - show login page if DB is connected but user is not authenticated
     if st.session_state.active_repo is not None and not st.session_state.authenticated:
         render_login_page(st.session_state.active_repo)
         st.stop()
     
-    # Determine default page based on setup status
-    if st.session_state.active_repo is not None and st.session_state.authenticated and st.session_state.master_data_exists:
-        default_index = 2  # Call Log Entry
-    else:
-        default_index = 0  # Settings
-    
-    # Create title bar with embedded navigation using HTML
-    st.markdown('<div class="title-bar">📞  Implementors Call Log Management System  📞</div>', unsafe_allow_html=True)
+    # Determine default page based on setup status (only if not already set)
+    if 'current_page_index' not in st.session_state:
+        if st.session_state.active_repo is not None and st.session_state.authenticated:
+            if st.session_state.master_data_exists:
+                st.session_state.current_page_index = 3  # Call Log Entry
+            else:
+                st.session_state.current_page_index = 1  # Master Data Management
+        else:
+            st.session_state.current_page_index = 0  # Settings
     
     # Navigation bar right below title
-    page_options = ["Settings", "Master Data Management", "Call Log Entry", "Reports", "Logout"]
+    page_options = ["Settings", "Master Data Management", "Types Config", "Call Log Entry", "Reports", "Logout"]
     page = st.radio(
         "Navigation",
         page_options,
-        index=default_index,
+        index=st.session_state.current_page_index,
         horizontal=True,
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        key="page_nav"
     )
+    
+    # Update current page index when navigation changes
+    st.session_state.current_page_index = page_options.index(page)
     
     st.divider()
     
     # Handle Logout immediately
     if page == "Logout":
+        # Clear authentication from bootstrap config
+        from bootstrap_config import load_bootstrap, save_bootstrap
+        bootstrap_config = load_bootstrap()
+        if bootstrap_config:
+            bootstrap_config.authenticated_user = None
+            save_bootstrap(bootstrap_config)
+        
         # Close DB connections for this repo if supported
         repo_obj = st.session_state.active_repo
         if hasattr(repo_obj, "close") and callable(getattr(repo_obj, "close")):
@@ -183,6 +209,7 @@ def main():
         st.session_state.current_user = None
         st.session_state.bootstrap_attempted = True  # avoid immediate auto-bootstrapping in same session
         st.session_state.logged_out = True
+        del st.session_state.current_page_index  # Remove page index so it doesn't interfere
         st.rerun()
     
     # Footer
@@ -192,12 +219,6 @@ def main():
             <p style="margin: 0;">Developed by <b>Indranil Chatterjee</b> | Version 1.0.0 | Date: {current_date}</p>
         </div>
     """, unsafe_allow_html=True)
-    
-    # Logged out screen
-    if st.session_state.get("logged_out") is True:
-        st.title("Logged out")
-        st.info("This session is closed. You can safely close this browser tab.")
-        st.stop()
     
     # Route to appropriate page
     if page == "Settings":
@@ -211,6 +232,10 @@ def main():
     elif page == "Master Data Management":
         _ensure_repo_or_stop()
         render_master_data_page(st.session_state.active_repo, st.session_state.dropdowns)
+    
+    elif page == "Types Config":
+        _ensure_repo_or_stop()
+        render_misc_types_page(st.session_state.active_repo, st.session_state.dropdowns)
     
     elif page == "Call Log Entry":
         _ensure_repo_or_stop()

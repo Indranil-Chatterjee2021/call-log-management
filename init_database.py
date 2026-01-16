@@ -71,6 +71,26 @@ def create_tables():
             )
         """)
         
+        # Create MiscData table for dropdown values
+        cursor.execute("""
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MiscData]') AND type in (N'U'))
+            CREATE TABLE [dbo].[MiscData] (
+                [ConfigId] INT PRIMARY KEY,
+                [Projects] NVARCHAR(MAX),
+                [TownTypes] NVARCHAR(MAX),
+                [Requesters] NVARCHAR(MAX),
+                [Designations] NVARCHAR(MAX),
+                [Modules] NVARCHAR(MAX),
+                [Issues] NVARCHAR(MAX),
+                [Solutions] NVARCHAR(MAX),
+                [SolvedOn] NVARCHAR(MAX),
+                [CallOn] NVARCHAR(MAX),
+                [Types] NVARCHAR(MAX),
+                [CreatedDate] DATETIME DEFAULT GETDATE(),
+                [UpdatedDate] DATETIME DEFAULT GETDATE()
+            )
+        """)
+        
         conn.commit()
         print("Tables created successfully!")
         

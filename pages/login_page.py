@@ -104,6 +104,14 @@ def _render_login_tab(repo):
                 if success:
                     st.session_state.authenticated = True
                     st.session_state.current_user = user_data
+                    
+                    # Save authentication state to bootstrap config
+                    from bootstrap_config import load_bootstrap, save_bootstrap
+                    bootstrap_config = load_bootstrap()
+                    if bootstrap_config:
+                        bootstrap_config.authenticated_user = login_username
+                        save_bootstrap(bootstrap_config)
+                    
                     st.success(message)
                     st.rerun()
                 else:

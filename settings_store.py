@@ -35,6 +35,7 @@ class AppSettings:
     backend: Backend
     mssql: Optional[MSSQLSettings] = None
     mongodb: Optional[MongoSettings] = None
+    authenticated_user: Optional[str] = None  # Store last authenticated username
 
 
 def _mssql_conn_str(s: MSSQLSettings) -> str:
