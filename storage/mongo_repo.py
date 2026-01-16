@@ -4,6 +4,15 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pymongo import ASCENDING, MongoClient
+
+# --- MongoClient Singleton Cache ---
+_mongo_clients = {}
+
+def get_mongo_client(mongo_uri: str) -> MongoClient:
+    """Get or create a singleton MongoClient for the given URI."""
+    if mongo_uri not in _mongo_clients:
+        _mongo_clients[mongo_uri] = MongoClient(mongo_uri)
+    return _mongo_clients[mongo_uri]
 from pymongo.collection import Collection
 
 from .base import CallLogRepository, CallLogRecord, DateRange, MasterRecord, UserRecord
@@ -16,15 +25,16 @@ def _normalize_str(v: Any) -> Optional[str]:
     return s if s else None
 
 
+
 class MongoRepository(CallLogRepository):
     def __init__(self, mongo_uri: str, db_name: str):
-        self._client = MongoClient(mongo_uri)
+        self._client = get_mongo_client(mongo_uri)
         self._db = self._client[db_name]
         self._master: Collection = self._db["master"]
         self._calllog: Collection = self._db["callLogEntries"]
         self._users: Collection = self._db["users"]
 
-        # Ensure indexes
+        # Ensure indexes (safe to call multiple times)
         self._master.create_index([("MobileNo", ASCENDING)], unique=True)
         self._calllog.create_index([("Date", ASCENDING)])
         self._users.create_index([("username", ASCENDING)], unique=True)
@@ -163,6 +173,45 @@ class MongoRepository(CallLogRepository):
     def email_config_delete(self) -> None:
         """Delete email configuration from database."""
         self._db["emailConfig"].delete_one({"_id": "email_settings"})
+
+    # ---- Misc/Dropdown Data Configuration ----
+    def misc_data_get(self) -> Optional[Dict[str, Any]]:
+        """Get misc/dropdown data configuration from database."""
+        doc = self._db["miscData"].find_one({"_id": "dropdown_values"})
+        if doc:
+            return {
+                "projects": doc.get("projects", []),
+                "town_types": doc.get("town_types", []),
+                "requesters": doc.get("requesters", []),
+                "designations": doc.get("designations", []),
+                "modules": doc.get("modules", []),
+                "issues": doc.get("issues", []),
+                "solutions": doc.get("solutions", []),
+                "solved_on": doc.get("solved_on", []),
+                "call_on": doc.get("call_on", []),
+                "types": doc.get("types", []),
+            }
+        return None
+
+    def misc_data_save(self, data: Dict[str, Any]) -> None:
+        """Save misc/dropdown data configuration to database."""
+        self._db["miscData"].update_one(
+            {"_id": "dropdown_values"},
+            {"$set": {
+                "projects": data.get("projects", []),
+                "town_types": data.get("town_types", []),
+                "requesters": data.get("requesters", []),
+                "designations": data.get("designations", []),
+                "modules": data.get("modules", []),
+                "issues": data.get("issues", []),
+                "solutions": data.get("solutions", []),
+                "solved_on": data.get("solved_on", []),
+                "call_on": data.get("call_on", []),
+                "types": data.get("types", []),
+                "UpdatedDate": datetime.utcnow()
+            }},
+            upsert=True
+        )
 
 
 _MASTER_FIELDS = [

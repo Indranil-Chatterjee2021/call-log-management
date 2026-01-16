@@ -8,7 +8,7 @@ from typing import Optional
 from settings_store import AppSettings
 
 
-BOOTSTRAP_FILE = Path(__file__).resolve().parent / ".calllogapp_bootstrap.json"
+BOOTSTRAP_FILE = Path(__file__).resolve().parent / ".db_config.json"
 
 
 def save_bootstrap(settings: AppSettings) -> None:

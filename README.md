@@ -1,44 +1,60 @@
 # Call Log Management System
 
-A Streamlit-based web application for managing call logs with authentication and support for both MSSQL and MongoDB databases.
+A comprehensive Streamlit-based web application for managing call logs with user authentication, master data management, and support for both MSSQL and MongoDB databases.
+
+## Overview
+
+This application provides a complete solution for tracking and managing customer call logs with auto-fill capabilities from master data. It supports both local deployment (with MSSQL or MongoDB) and cloud deployment (MongoDB only) on Streamlit Cloud.
 
 ## Features
 
-1. **User Authentication**: Secure login system
+### 1. **User Authentication**
    - User registration (first-time setup)
-   - Login with username/password
+   - Secure login with username/password
    - Password reset functionality
-   - Session-based authentication
+   - Session-based authentication with automatic logout
 
-2. **Master Data Management**: CRUD operations for master data
-   - View all master records
-   - Add new master records
-   - Update existing master records
-   - Delete master records
+### 2. **Master Data Management**
+   - **Manual Excel Import**: Import master data from Excel file (one-time process)
+   - **CRUD Operations**: View, Add, Update, and Delete master records
+   - **Unique Mobile Numbers**: Enforces unique mobile number constraint
+   - **Duplicate Detection**: Automatically detects and reports duplicates during import
+   - **Import Disabled**: Import button is disabled once data exists to prevent accidental overwrites
 
-3. **Call Log Entry**: Create new call log entries with auto-fill functionality
-   - Enter mobile number to auto-fill related fields from Master table
-   - Fields auto-filled: Project, Town, Requester, RD Code, RD Name, State, Designation, Name
-   - Dropdown fields: Module, Issue, Solution, Solved On, Call On, Type
+### 3. **Dropdown Configuration** (New!)
+   - **Centralized Management**: Manage all dropdown values used throughout the application
+   - **Database Storage**: All dropdown values stored in database (no Excel dependency after setup)
+   - **Easy Addition**: Add new values to any dropdown field via UI
+   - **Bulk Import**: One-time import from Excel to extract dropdown values
+   - **Fields Managed**: Projects, Town Types, Requesters, Designations, Modules, Issues, Solutions, Solved On, Call On, Types
 
-4. **Reports**: Export call log data to Excel
-   - Filter by date range
-   - Export filtered data to Excel format
+### 4. **Call Log Entry**
+   - **Auto-Fill Functionality**: Enter mobile number and fetch related data from Master table
+   - **Auto-filled Fields**: Project, Town, Requester, RD Code, RD Name, State, Designation, Name
+   - **Dropdown Fields**: Module, Issue, Solution, Solved On, Call On, Type
+   - **Date Selection**: Record call date and time
 
-5. **Settings (required)**:
-   - User must choose **MSSQL** (local only) or **MongoDB** (local and cloud)
-   - Test connection
-   - Save & Activate (stores config inside the chosen backend)
+### 5. **Reports & Export**
+   - **Date Range Filtering**: Filter call logs by date range
+   - **Excel Export**: Download filtered data as Excel file
+   - **Email Reports**: Send reports via email (requires email configuration)
+   - **Data Preview**: View filtered data before export
+
+### 6. **Settings**
+   - **Database Backend Selection**: Choose between MSSQL (local only) or MongoDB (local/cloud)
+   - **Connection Testing**: Test database connection before activation
+   - **Auto-Bootstrap**: Automatically reconnect on app restart
+   - **Email Configuration**: Configure SMTP settings for email reports
 
 ## Deployment Options
 
-### Option 1: Local Executable
+### Option 1: Local Deployment
 - Create a standalone executable file
-- Supports both MSSQL and MongoDB
+- Supports both **MSSQL** and **MongoDB**
 - No installation required for end users
 - See "Creating Executable" section below
 
-### Option 2: Streamlit Cloud
+### Option 2: Cloud Deployment (Streamlit Cloud)
 - Deploy to Streamlit Cloud for worldwide access
 - **MongoDB only** (MSSQL disabled on cloud)
 - Free hosting with Streamlit Community Cloud
@@ -47,10 +63,10 @@ A Streamlit-based web application for managing call logs with authentication and
 ## Prerequisites
 
 ### For Local Use:
-- Python 3.8 or higher
-- One of:
+- **Python 3.8 or higher**
+- One of the following databases:
   - **MSSQL Server** (SQL Server or SQL Server Express) + ODBC Driver 17/18
-  - **MongoDB** (local or Atlas)
+  - **MongoDB** (local installation or MongoDB Atlas)
 
 ### For Streamlit Cloud:
 - GitHub account
@@ -58,245 +74,863 @@ A Streamlit-based web application for managing call logs with authentication and
 
 ## Installation
 
-1. Clone or download this repository
+### 1. Clone or Download Repository
+```bash
+git clone <repository-url>
+cd callLogApp
+```
 
-2. Create a virtual environment (recommended):
+### 2. Create Virtual Environment (Recommended)
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Install dependencies:
+### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Configure database connection:
-   - Create a `.env` file in the project root
-   - Add the following variables:
-```
+### 4. Configure Environment Variables (Optional)
+Create a `.env` file in the project root for default connection settings:
+
+```env
 DB_BACKEND=mssql   # or: mongodb
 
+# MSSQL Settings (used only when DB_BACKEND=mssql)
 DB_SERVER=your_server_name
 DB_NAME=CALLLOG
 DB_USER=your_username
 DB_PASSWORD=your_password
 DB_DRIVER={ODBC Driver 17 for SQL Server}
 
-# MongoDB (used only when DB_BACKEND=mongodb)
+# MongoDB Settings (used only when DB_BACKEND=mongodb)
 MONGO_URI=mongodb://localhost:27017
 MONGO_DB=call-logs
 ```
 
+**Note**: Environment variables are optional. You can configure everything through the Settings page in the UI.
+
 ## First Run (Mandatory Settings Step)
 
-1. Start the app:
+### 1. Start the Application
 ```bash
 streamlit run app.py
 ```
+The application will open at `http://localhost:8501`
 
-2. Go to **Settings**
-   - Select backend (**MSSQL** or **MongoDB**)
-   - Enter connection details
-   - Click **Test Connection**
-   - Click **Save & Activate**
+### 2. Configure Database Backend
+1. Navigate to **Settings** page
+2. Select your database backend:
+   - **MSSQL** (for local deployment only)
+   - **MongoDB** (for local or cloud deployment)
+3. Enter connection details
+4. Click **Test Connection** to verify
+5. Click **Save & Activate** to initialize the database
 
-After this, the other pages (Master / Call Log / Reports) will be enabled.
+### 3. Initialize Database
+- **MSSQL**: Tables are automatically created when you click "Save & Activate"
+- **MongoDB**: Collections are created automatically when first used
 
-## Auto-load on Startup (Recommended)
+### 4. Register First User
+1. After database activation, the app will show the **Register** tab
+2. Create your first user account with username and password
+3. Subsequent users can only be added by administrators
 
-After you click **Save & Activate** in Settings, the app writes a local file:
-- `.calllogapp_bootstrap.json`
+### 5. Login
+1. Enter your credentials on the **Login** tab
+2. Access all application features after successful authentication
 
-On the next startup, the app will automatically try to connect using this file and activate the backend.
+## Excel File Format Requirements
 
-**Security note**: this file can contain credentials (MSSQL password / Mongo URI). It is added to `.gitignore` and should be kept private.
+The application's database structure and dropdown values are designed based on Excel file format. If you plan to import data from Excel, ensure your Excel file follows this structure:
 
-## Database Setup
+### Excel File: `Verma R Master.xlsx` (or any name)
 
-### For MSSQL (Local Use):
-**Tables are automatically created!** When you click "Save & Activate MSSQL", the application will automatically create all required tables:
-- Master
-- CallLogEntries
-- Users
-- AppConfig
+#### **Sheet 1: "Master"** (for Master Data Import)
+This sheet contains customer/contact master data. Header row should be at **Row 2** (Row 1 can be title).
 
-No manual setup required!
+**Required Columns (in order):**
+| Column | Field Name | Data Type | Required | Description |
+|--------|------------|-----------|----------|-------------|
+| A | SrNo | Number | No | Serial Number (auto-generated in DB) |
+| B | MobileNo | Text/Number | **Yes** | Unique mobile number (Primary Key) |
+| C | Project | Text | No | Project name |
+| D | TownType | Text | No | Type of town |
+| E | Requester | Text | No | Person requesting |
+| F | RDCode | Text | No | RD code |
+| G | RDName | Text | No | RD name |
+| H | Town | Text | No | Town/City name |
+| I | State | Text | No | State name |
+| J | Designation | Text | No | Contact's designation |
+| K | Name | Text | No | Contact's name |
+| L | GSTNo | Text | No | GST number |
+| M | EmailID | Text | No | Email address |
 
-### For MongoDB (Local or Cloud):
-Collections are automatically created when first used. No manual setup required.
+**Example:**
+```
+Row 1: [Title - optional]
+Row 2: SrNo | Mobile No | Project | Town Type | Requester | RD Code | RD Name | Town | State | Designation | Name | GST No | Email ID
+Row 3: 1 | 9876543210 | Project A | Urban | John Doe | RD001 | Region 1 | Mumbai | Maharashtra | Manager | Jane Smith | 27XXXXX | jane@example.com
+Row 4: 2 | 9876543211 | Project B | Rural | Alice Brown | RD002 | Region 2 | Pune | Maharashtra | Director | Bob Wilson | 27YYYYY | bob@example.com
+...
+```
 
-### Master Data Import:
-The app automatically imports master data from `Verma R Master.xlsx` on first run if the Master collection/table is empty.
+#### **Sheet 2: "Sheet1"** (for Dropdown Values Import)
+This sheet contains all dropdown values used throughout the application. Header row should be at **Row 3** (Rows 1-2 can be titles).
 
-## Where Settings Are Stored
+**Required Columns (in order):**
+| Column | Field Name | Description | Used In |
+|--------|------------|-------------|---------|
+| A (Unnamed: 0) | PROJECT | List of all projects | Master Data, Call Log |
+| B (Unnamed: 1) | TOWN TYPE | List of town types | Master Data |
+| C (Unnamed: 2) | REQUSETER | List of requesters | Master Data, Call Log |
+| H (Unnamed: 7) | DESIGNATION | List of designations | Master Data, Call Log |
+| J (Unnamed: 9) | MODULE | List of modules | Call Log |
+| K (Unnamed: 10) | ISSUE | List of issue types | Call Log |
+| L (Unnamed: 11) | SOLUTION | List of solution types | Call Log |
+| M (Unnamed: 12) | SOLVED ON | List of solved on values | Call Log |
+| N (Unnamed: 13) | CALL ON | List of call on values | Call Log |
+| O (Unnamed: 14) | TYPE | List of call types | Call Log |
 
-- **MSSQL**: `dbo.AppConfig` table (key: `active`)
-- **MongoDB**: `appConfig` collection (`_id: "active"`)
+**Example:**
+```
+Row 1-2: [Titles - optional]
+Row 3: PROJECT | TOWN TYPE | REQUSETER | ... | DESIGNATION | ... | MODULE | ISSUE | SOLUTION | SOLVED ON | CALL ON | TYPE
+Row 4: Project A | Urban | John Doe | ... | Manager | ... | Accounts | Login Issue | Reset Password | Phone | Mobile | Support
+Row 5: Project B | Rural | Alice | ... | Director | ... | Reports | Data Error | Fixed Query | Email | Email | Query
+Row 6: Project C | Semi-Urban | Bob | ... | Executive | ... | Dashboard | Display | Updated UI | WhatsApp | SMS | Feedback
+...
+```
 
-## Running the Application Locally
+**Important Notes:**
+- The Excel file is **only used for initial import**
+- After import, all data is managed through the application UI
+- Dropdown values are extracted from unique values in each column
+- Header text (like "PROJECT", "TOWN TYPE") is automatically excluded
+- Empty cells and duplicate values are automatically handled
+- Once data is imported, you can manage everything through the **Dropdown Config** page
 
-Start the Streamlit app:
+## Auto-Bootstrap on Startup
+
+After clicking **Save & Activate** in Settings, the app creates:
+- `.calllogapp_bootstrap.json` (local file)
+
+On subsequent startups, the app automatically:
+- Reads this file
+- Tests the database connection
+- Activates the backend if connection is successful
+
+**Security Note**: This file may contain credentials (MSSQL password / MongoDB URI). It is included in `.gitignore` and should be kept private.
+
+## Database Schema
+
+### Database Tables/Collections
+
+#### 1. **Master** (Customer/Contact Master Data)
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| SrNo / _id | INT / ObjectId | Primary Key, Auto-increment | Unique identifier |
+| MobileNo | NVARCHAR(20) / String | UNIQUE, REQUIRED | Mobile number (unique) |
+| Project | NVARCHAR(200) / String | Optional | Project name |
+| TownType | NVARCHAR(100) / String | Optional | Type of town |
+| Requester | NVARCHAR(200) / String | Optional | Person requesting |
+| RDCode | NVARCHAR(50) / String | Optional | RD code |
+| RDName | NVARCHAR(200) / String | Optional | RD name |
+| Town | NVARCHAR(200) / String | Optional | Town/City |
+| State | NVARCHAR(100) / String | Optional | State |
+| Designation | NVARCHAR(200) / String | Optional | Designation |
+| Name | NVARCHAR(200) / String | Optional | Contact name |
+| GSTNo | NVARCHAR(50) / String | Optional | GST number |
+| EmailID | NVARCHAR(200) / String | Optional | Email address |
+| CreatedDate | DATETIME2 / Date | Auto | Creation timestamp |
+| UpdatedDate | DATETIME2 / Date | Auto | Last update timestamp |
+
+**Indexes**: MobileNo (unique index)
+
+#### 2. **CallLogEntries** (Call Log Records)
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| SrNo / _id | INT / ObjectId | Primary Key, Auto-increment | Unique identifier |
+| Date | DATETIME2 / Date | REQUIRED | Call date and time |
+| MobileNo | NVARCHAR(20) / String | Optional | Mobile number |
+| Project | NVARCHAR(200) / String | Optional | Project name |
+| Town | NVARCHAR(200) / String | Optional | Town/City |
+| Requester | NVARCHAR(200) / String | Optional | Person requesting |
+| RDCode | NVARCHAR(50) / String | Optional | RD code |
+| RDName | NVARCHAR(200) / String | Optional | RD name |
+| State | NVARCHAR(100) / String | Optional | State |
+| Designation | NVARCHAR(200) / String | Optional | Designation |
+| Name | NVARCHAR(200) / String | Optional | Contact name |
+| Module | NVARCHAR(200) / String | Optional | Module/Feature |
+| Issue | NVARCHAR(MAX) / String | Optional | Issue description |
+| Solution | NVARCHAR(MAX) / String | Optional | Solution provided |
+| SolvedOn | NVARCHAR(200) / String | Optional | Resolution channel |
+| CallOn | NVARCHAR(200) / String | Optional | Call channel |
+| Type | NVARCHAR(100) / String | Optional | Call type |
+| CreatedDate | DATETIME2 / Date | Auto | Creation timestamp |
+| UpdatedDate | DATETIME2 / Date | Auto | Last update timestamp |
+
+**Indexes**: Date (for efficient date range queries)
+
+#### 3. **Users** (User Authentication)
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| UserId / _id | INT / ObjectId | Primary Key, Auto-increment | Unique identifier |
+| Username | NVARCHAR(100) / String | UNIQUE, REQUIRED | Login username |
+| Password | NVARCHAR(256) / String | REQUIRED | Hashed password |
+| CreatedDate | DATETIME2 / Date | Auto | Creation timestamp |
+| UpdatedDate | DATETIME2 / Date | Optional | Last update timestamp |
+
+**Indexes**: Username (unique index)
+
+#### 4. **MiscData** (Dropdown Configuration)
+**MSSQL Structure:**
+| Field | Type | Description |
+|-------|------|-------------|
+| ConfigId | INT | Primary Key (always 1) |
+| Projects | NVARCHAR(MAX) | JSON array of projects |
+| TownTypes | NVARCHAR(MAX) | JSON array of town types |
+| Requesters | NVARCHAR(MAX) | JSON array of requesters |
+| Designations | NVARCHAR(MAX) | JSON array of designations |
+| Modules | NVARCHAR(MAX) | JSON array of modules |
+| Issues | NVARCHAR(MAX) | JSON array of issues |
+| Solutions | NVARCHAR(MAX) | JSON array of solutions |
+| SolvedOn | NVARCHAR(MAX) | JSON array of solved on values |
+| CallOn | NVARCHAR(MAX) | JSON array of call on values |
+| Types | NVARCHAR(MAX) | JSON array of types |
+| CreatedDate | DATETIME2 | Creation timestamp |
+| UpdatedDate | DATETIME2 | Last update timestamp |
+
+**MongoDB Structure:**
+```json
+{
+  "_id": "dropdown_values",
+  "projects": ["Project A", "Project B", ...],
+  "town_types": ["Urban", "Rural", ...],
+  "requesters": ["John Doe", "Jane Smith", ...],
+  "designations": ["Manager", "Director", ...],
+  "modules": ["Accounts", "Reports", ...],
+  "issues": ["Login Issue", "Data Error", ...],
+  "solutions": ["Reset Password", "Fixed Query", ...],
+  "solved_on": ["Phone", "Email", ...],
+  "call_on": ["Mobile", "WhatsApp", ...],
+  "types": ["Support", "Query", ...]
+}
+```
+
+#### 5. **EmailConfig** (Email Settings)
+| Field | Type | Description |
+|-------|------|-------------|
+| ConfigId / _id | INT / String | Primary Key |
+| SmtpServer | NVARCHAR(200) / String | SMTP server address |
+| SmtpPort | INT / Number | SMTP port |
+| SmtpUser | NVARCHAR(200) / String | SMTP username |
+| SmtpPassword | NVARCHAR(500) / String | SMTP password |
+| CreatedDate | DATETIME2 / Date | Creation timestamp |
+| UpdatedDate | DATETIME2 / Date | Last update timestamp |
+
+#### 6. **AppConfig** (Application Configuration)
+Stores backend configuration and settings.
+
+**MSSQL**: Table with ConfigKey/ConfigValue pairs  
+**MongoDB**: Collection with document `_id: "active"`
+
+## Usage Guide
+
+### First Time Setup:
+1. **Configure Database**: Go to Settings → Choose backend → Test & Activate
+2. **Register User**: Create your first user account
+3. **Import Master Data**: (Optional) Go to Master Data Management → Import from Excel
+4. **Configure Dropdowns**: (Optional) Go to Dropdown Config → Import or add values manually
+
+### Daily Operations:
+
+#### **Master Data Management**
+1. Navigate to **Master Data Management**
+2. **View All**: See all master records with import button
+   - **Import from Excel**: Disabled once data exists
+   - Use this button for one-time import
+3. **Add New**: Create new master records manually
+4. **Update**: Modify existing records
+5. **Delete**: Remove records
+
+**Important**: Mobile number must be unique!
+
+#### **Dropdown Configuration**
+1. Navigate to **Dropdown Config**
+2. **Add New Values**:
+   - Select field type (Projects, Modules, Issues, etc.)
+   - Enter new value
+   - Click "Add Value"
+   - Values are immediately available in dropdowns
+3. **View All**: See all dropdown values for each field
+4. **Bulk Import**: (One-time only) Import from Excel Sheet1
+
+**Supported Fields:**
+- Projects
+- Town Types
+- Requesters
+- Designations
+- Modules
+- Issues
+- Solutions
+- Solved On
+- Call On
+- Types
+
+#### **Call Log Entry**
+1. Navigate to **Call Log Entry**
+2. **Enter Mobile Number** and click "Fetch from Master"
+3. Form auto-fills with data from Master table:
+   - Project, Town, Requester
+   - RD Code, RD Name, State
+   - Designation, Name
+4. **Select from Dropdowns**:
+   - Module (e.g., Accounts, Reports)
+   - Issue (e.g., Login Issue)
+   - Solution (e.g., Reset Password)
+   - Solved On (e.g., Phone, Email)
+   - Call On (e.g., Mobile, WhatsApp)
+   - Type (e.g., Support, Query)
+5. Click **Add Call Log** to save
+
+#### **Reports & Export**
+1. Navigate to **Reports**
+2. **Filter by Date**: (Optional) Select start and end dates
+3. **View Data**: Preview filtered records in table
+4. **Download**: Click "Download Excel File"
+5. **Email** (if configured): 
+   - Expand "Email Report" section
+   - Enter recipient email
+   - Click "Send Email"
+
+#### **Settings**
+1. **Database Configuration**: Change or test connection
+2. **Email Configuration**: 
+   - Enter SMTP server details
+   - Test email settings
+   - Save configuration
+
+## Running the Application
+
+### Local Development
 ```bash
+# Activate virtual environment
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Run the application
 streamlit run app.py
 ```
 
-The application will open in your default web browser at `http://localhost:8501`
+Access at: `http://localhost:8501`
 
-## Creating Executable
+### Production Deployment
+See "Creating Executable" or "Deploying to Streamlit Cloud" sections below.
 
-To create a standalone executable that can be shared with others:
+## Creating Standalone Executable
 
-1. Install PyInstaller (already in requirements.txt):
+Create a distributable executable file that users can run without installing Python.
+
+### Prerequisites
 ```bash
 pip install pyinstaller
 ```
 
-2. Build the executable:
+### Build Executable
 ```bash
 pyinstaller app.spec
 ```
 
-3. The executable will be created in the `dist` folder:
-   - `dist/app` (macOS/Linux) or `dist/app.exe` (Windows)
+### Output
+- **Location**: `dist/app/` (or `dist/app.exe` on Windows)
+- **Size**: Approximately 150-200 MB (includes Python interpreter and dependencies)
+- **Distribution**: Share the entire `dist/app/` folder
 
-4. Share the entire `dist` folder with users - they can run the app without installing Python!
+### Running the Executable
+**Windows:**
+```cmd
+dist\app\app.exe
+```
 
-**Note**: The executable includes support for both MSSQL and MongoDB.
+**macOS/Linux:**
+```bash
+./dist/app/app
+```
+
+The application will open in the default browser automatically.
+
+**Note**: The executable includes support for both MSSQL and MongoDB backends.
 
 ## Deploying to Streamlit Cloud
 
-### Prerequisites:
-1. Create a [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) account (free tier available)
-2. Create a cluster and get your connection URI
-3. Create a [GitHub](https://github.com) account
-4. Create a [Streamlit Cloud](https://streamlit.io/cloud) account
+Deploy your application for worldwide access with MongoDB backend.
 
-### Steps:
+### Prerequisites
+1. **GitHub Account**: [github.com](https://github.com)
+2. **MongoDB Atlas**: [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas/register)
+3. **Streamlit Cloud Account**: [streamlit.io/cloud](https://streamlit.io/cloud)
 
-1. **Push your code to GitHub**:
-   - Create a new repository on GitHub
-   - Push your project files (including `Verma R Master.xlsx`)
-   - Make sure `.env` and `bootstrap.json` are in `.gitignore`
+### Step 1: Prepare MongoDB Atlas
 
-2. **Deploy on Streamlit Cloud**:
+1. **Create Free Cluster**:
+   - Sign up for MongoDB Atlas
+   - Create a free M0 cluster (512 MB storage)
+   - Choose a region close to your users
+
+2. **Configure Database Access**:
+   - Go to Database Access
+   - Add a database user with password
+   - Note down the username and password
+
+3. **Configure Network Access**:
+   - Go to Network Access
+   - Click "Add IP Address"
+   - Select "Allow Access from Anywhere" (0.0.0.0/0)
+   - This is required for Streamlit Cloud
+
+4. **Get Connection String**:
+   - Go to your cluster
+   - Click "Connect" → "Connect your application"
+   - Copy the connection URI
+   - Replace `<password>` with your actual password
+   - Example: `mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/`
+
+### Step 2: Push to GitHub
+
+1. **Create Repository**:
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/yourusername/callLogApp.git
+git push -u origin main
+```
+
+2. **Verify Files**:
+   - Ensure `requirements.txt` is included
+   - Ensure `.env` and `.calllogapp_bootstrap.json` are in `.gitignore`
+   - Include Excel file if you want to use import feature
+
+### Step 3: Deploy to Streamlit Cloud
+
+1. **Access Streamlit Cloud**:
    - Go to [share.streamlit.io](https://share.streamlit.io)
+   - Sign in with GitHub
+
+2. **Create New App**:
    - Click "New app"
-   - Connect your GitHub account
-   - Select your repository and branch
-   - Set Main file path: `app.py`
+   - Select your repository
+   - Branch: `main` (or your branch name)
+   - Main file path: `app.py`
+
+3. **Advanced Settings** (Optional):
+   - Python version: 3.8+
+   - No secrets needed (users enter their MongoDB URI in the app)
+
+4. **Deploy**:
    - Click "Deploy!"
+   - Wait for deployment (3-5 minutes)
 
-3. **Configure for each user**:
-   - Each user opens your Streamlit Cloud URL
-   - They enter their MongoDB Atlas URI in the Settings page
-   - They register and login
-   - The app automatically imports master data to their database
+### Step 4: Configure Application
 
-**Important Notes**:
-- **MSSQL is disabled on Streamlit Cloud** - only MongoDB is available
-- Each user must provide their own MongoDB connection URI
-- Each user gets their own isolated database
-- Users need to re-enter their MongoDB URI on each visit (for security)
+**For Each User:**
+1. Open the deployed Streamlit app URL
+2. Go to **Settings** page
+3. Select **MongoDB** backend
+4. Enter their MongoDB Atlas connection URI:
+   ```
+   mongodb+srv://username:password@cluster0.xxxxx.mongodb.net/call-logs
+   ```
+5. Click **Test Connection**
+6. Click **Save & Activate**
+7. Register and login
 
-## Usage
+### Important Notes
 
-### First Time Setup:
-1. Open the application
-2. Go to "Settings" page
-3. Choose your database (MSSQL for local, MongoDB for local or cloud)
-4. Enter connection details and click "Save & Activate"
-5. **Register** your first user account
-6. **Login** with your credentials
-7. Master data is automatically imported on first run
+- **MSSQL is automatically disabled** on Streamlit Cloud (cloud environment detection)
+- Each user should use their **own MongoDB Atlas cluster** for data isolation
+- Free MongoDB Atlas tier (M0) is sufficient for most use cases
+- Connection URI is **not persisted** between sessions (for security)
+- Users need to re-enter their MongoDB URI each time they visit
+- The app creates its own database and collections automatically
 
-### Subsequent Usage:
-1. Open the application
-2. Enter database credentials (if needed)
-3. **Login** with your username and password
-4. Use the application
+### Multi-Tenant Setup
 
-### Master Data Management
-1. Navigate to "Master Data Management"
-2. Use the tabs to View, Add, Update, or Delete master records
-3. Mobile No is a required field and must be unique
+**Option 1: Individual Databases (Recommended)**
+- Each user creates their own MongoDB Atlas account
+- Complete data isolation
+- No shared infrastructure
 
-### Call Log Entry
-1. Navigate to "Call Log Entry"
-2. Enter a mobile number and click "Fetch from Master"
-3. The form will be populated with data from the Master table
-4. Fill in the dropdown fields (Module, Issue, Solution, etc.)
-5. Click "Add Call Log" to save
+**Option 2: Shared Cluster**
+- Create one MongoDB Atlas cluster
+- Share connection URI with all users
+- Each user gets their own database automatically
+- Set database name in connection string: `mongodb+srv://...mongodb.net/username_calllog`
 
-### Reports
-1. Navigate to "Reports"
-2. Optionally select a date range to filter records
-3. View data in the table
-4. Click "Download Excel File" to export
+### Troubleshooting Cloud Deployment
 
-## Database Schema
+**Issue**: Connection timeout
+- **Solution**: Ensure "Allow Access from Anywhere" in MongoDB Network Access
 
-### Master Table
-- SrNo (Primary Key, Auto-increment)
-- MobileNo (Unique, Required)
-- Project
-- TownType
-- Requester
-- RDCode
-- RDName
-- Town
-- State
-- Designation
-- Name
-- GSTNo
-- EmailID
-- CreatedDate
-- UpdatedDate
+**Issue**: Authentication failed
+- **Solution**: Check username and password in connection URI
 
-### CallLogEntries Table
-- SrNo (Primary Key, Auto-increment)
-- Date
-- MobileNo (Required)
-- Project
-- Town
-- Requester
-- RDCode
-- RDName
-- State
-- Designation
-- Name
-- Module
-- Issue
-- Solution
-- SolvedOn
-- CallOn
-- Type
-- CreatedDate
-- UpdatedDate
+**Issue**: Database not found
+- **Solution**: Database is created automatically; ensure URI is correct
 
-## Notes
+**Issue**: App shows "Please configure database"
+- **Solution**: Go to Settings and enter MongoDB connection details
 
-- The Excel file `Verma R Master.xlsx` must be in the project root directory
-- Dropdown values are extracted from the "Sheet1" sheet in the Excel file
-- Master data is imported from the "Master" sheet
+## Data Flow & Architecture
+
+### Application Architecture
+```
+┌─────────────────────────────────────────────────┐
+│           Streamlit Frontend (app.py)           │
+├─────────────────────────────────────────────────┤
+│  Pages:                                         │
+│  - Login/Auth (login_page.py)                   │
+│  - Settings (settings_page.py)                  │
+│  - Master Data (master_data_page.py)            │
+│  - Dropdown Config (misc_types_page.py)         │
+│  - Call Log Entry (call_log_page.py)            │
+│  - Reports (reports_page.py)                    │
+├─────────────────────────────────────────────────┤
+│        Repository Layer (storage/)              │
+│  - Base Protocol (base.py)                      │
+│  - MSSQL Repository (mssql_repo.py)             │
+│  - MongoDB Repository (mongo_repo.py)           │
+├─────────────────────────────────────────────────┤
+│              Database Layer                     │
+│  MSSQL Server         │    MongoDB Atlas        │
+│  (Local Only)         │    (Local/Cloud)        │
+└─────────────────────────────────────────────────┘
+```
+
+### Data Flow for Call Log Entry
+1. User enters mobile number
+2. Click "Fetch from Master" → Query Master table
+3. Auto-fill form with Master data
+4. User selects dropdown values (from MiscData)
+5. Click "Add Call Log" → Insert into CallLogEntries
+
+### Data Flow for Master Data Import
+1. User selects Excel file (Master sheet)
+2. Click "Import from Excel"
+3. Parse Excel → Extract records
+4. Detect and report duplicates
+5. Insert into Master table
+6. Import button becomes disabled
+
+### Data Flow for Dropdown Configuration
+1. **First Time**: Bulk import from Excel Sheet1
+2. **Ongoing**: Add values through UI
+3. Values stored in MiscData table/collection
+4. Cached in session state for performance
+5. Used throughout app in dropdown fields
+
+## Project Structure
+
+```
+callLogApp/
+├── app.py                      # Main application entry point
+├── requirements.txt            # Python dependencies
+├── app.spec                    # PyInstaller configuration
+├── .env                        # Environment variables (optional)
+├── .gitignore                  # Git ignore file
+├── README.md                   # This file
+├── style.css                   # Custom CSS styling
+│
+├── pages/                      # Streamlit pages
+│   ├── login_page.py          # Authentication page
+│   ├── settings_page.py       # Database & email configuration
+│   ├── master_data_page.py    # Master data CRUD + import
+│   ├── misc_types_page.py     # Dropdown configuration (NEW)
+│   ├── call_log_page.py       # Call log entry with auto-fill
+│   └── reports_page.py        # Reports and export
+│
+├── storage/                    # Data access layer
+│   ├── __init__.py            # Repository factory
+│   ├── base.py                # Repository protocol (interface)
+│   ├── mssql_repo.py          # MSSQL implementation
+│   ├── mongo_repo.py          # MongoDB implementation
+│   └── factory.py             # Repository creation logic
+│
+├── auth.py                     # Authentication utilities
+├── db_config.py               # Database connection configuration
+├── db_init_mssql.py           # MSSQL table creation
+├── init_database.py           # Database initialization
+├── dropdown_data.py           # Dropdown data retrieval (DB-based)
+├── settings_store.py          # Settings management
+├── bootstrap_config.py        # Auto-reconnect configuration
+│
+└── build/                     # PyInstaller build artifacts (ignored)
+```
+
+## Key Features Explained
+
+### 1. **Auto-Fill from Master Data**
+When entering a call log, the application:
+- Accepts mobile number input
+- Queries the Master table for matching record
+- Auto-fills 8 fields: Project, Town, Requester, RD Code, RD Name, State, Designation, Name
+- Saves time and ensures data consistency
+
+### 2. **Dropdown Management**
+All dropdown values are:
+- Stored in database (MiscData table/collection)
+- Managed through UI (no Excel editing needed)
+- Cached for performance
+- Sorted alphabetically
+- Deduplicated automatically
+
+### 3. **Database Abstraction**
+The repository pattern allows:
+- Seamless switching between MSSQL and MongoDB
+- Same codebase for both backends
+- Easy testing and maintenance
+- Future backend additions possible
+
+### 4. **Security**
+- Passwords are hashed (bcrypt)
+- Session-based authentication
+- Bootstrap file excluded from version control
+- MongoDB URI not persisted on cloud (security)
+
+### 5. **Import Protection**
+- Import button disabled after first import
+- Prevents accidental data overwrites
+- Users can still add/update records individually
+- Duplicate mobile numbers detected and reported
+
+## Advanced Configuration
+
+### Custom Styling
+Edit `style.css` to customize:
+- Colors and themes
+- Font sizes
+- Layout spacing
+- Button styles
+
+### Email Configuration
+Configure SMTP settings in Settings page:
+- **SMTP Server**: e.g., `smtp.gmail.com`
+- **SMTP Port**: e.g., `587` (TLS) or `465` (SSL)
+- **SMTP User**: Your email address
+- **SMTP Password**: App-specific password (recommended)
+
+**Gmail Example:**
+1. Enable 2-factor authentication
+2. Generate app-specific password
+3. Use `smtp.gmail.com:587`
+
+### Environment Variables
+Create `.env` file for default settings:
+```env
+# Default backend (optional)
+DB_BACKEND=mongodb
+
+# MSSQL Settings (optional)
+DB_SERVER=localhost
+DB_NAME=CALLLOG
+DB_USER=sa
+DB_PASSWORD=your_password
+DB_DRIVER={ODBC Driver 17 for SQL Server}
+
+# MongoDB Settings (optional)
+MONGO_URI=mongodb://localhost:27017
+MONGO_DB=call-logs
+```
+
+## Performance Optimization
+
+### For Large Datasets
+1. **Use Indexes**: Automatically created on MobileNo and Date fields
+2. **Date Range Filtering**: Always use date filters in Reports
+3. **Batch Operations**: Import large datasets using Excel import
+
+### For Slow Connections
+1. **Pagination**: Consider implementing for very large tables
+2. **Connection Pooling**: MongoDB driver handles this automatically
+3. **Caching**: Dropdown values cached in session state
+
+## Backup & Restore
+
+### MSSQL Backup
+```sql
+-- Create backup
+BACKUP DATABASE CALLLOG TO DISK = 'C:\Backups\CALLLOG.bak'
+
+-- Restore backup
+RESTORE DATABASE CALLLOG FROM DISK = 'C:\Backups\CALLLOG.bak'
+```
+
+### MongoDB Backup
+```bash
+# Export database
+mongodump --uri="mongodb://localhost:27017/call-logs" --out=./backup
+
+# Import database
+mongorestore --uri="mongodb://localhost:27017/call-logs" ./backup/call-logs
+```
+
+### MongoDB Atlas Backup
+- Automatic continuous backups in paid tiers
+- Manual export via MongoDB Compass (GUI tool)
+- Use `mongodump` with connection string
 
 ## Troubleshooting
 
 ### Database Connection Issues
-- **MSSQL**:
-  - Verify MSSQL Server is running
-  - Check ODBC driver is installed
-  - Verify connection credentials in `.env` file
-  - Ensure database exists and user has proper permissions
-- **MongoDB**:
-  - Verify MongoDB is running / reachable
-  - Verify `MONGO_URI` and `MONGO_DB` in `.env`
+
+**MSSQL Connection Failed:**
+```
+✓ Check SQL Server is running: services.msc → SQL Server
+✓ Verify server name: .\SQLEXPRESS or localhost\SQLEXPRESS
+✓ Confirm ODBC driver installed: odbcad32.exe
+✓ Test with SQL Server Management Studio
+✓ Check firewall settings
+✓ Verify user permissions: SQL Server Management Studio → Security → Logins
+```
+
+**MongoDB Connection Failed:**
+```
+✓ Check MongoDB service: mongod --version
+✓ Verify connection URI format
+✓ Test with MongoDB Compass
+✓ Check network access (MongoDB Atlas)
+✓ Verify username/password
+✓ Check IP whitelist (MongoDB Atlas)
+```
 
 ### Import Issues
-- Ensure `Verma R Master.xlsx` is in the project root
-- Check that sheet names match: "Master", "Database", "Sheet1"
-- Verify Excel file is not open in another application
+
+**Excel File Not Found:**
+- Ensure file is in same directory as `app.py`
+- Check file name matches exactly (case-sensitive)
+- File should not be open in Excel
+
+**Import Button Not Appearing:**
+- Data already exists (button is disabled)
+- Delete existing data to re-enable import
+
+**Duplicate Mobile Numbers:**
+- Excel contains duplicate entries
+- Check duplicate report after import
+- Only first occurrence is imported
+
+### Application Issues
+
+**Pages Not Loading:**
+- Database not configured
+- Go to Settings → Test & Activate
+- Check authentication (logout and login)
+
+**Dropdowns Empty:**
+- No dropdown data configured
+- Go to Dropdown Config → Import from Excel
+- Or add values manually
+
+**Auto-Fill Not Working:**
+- Mobile number not in Master table
+- Check Master Data Management → View All
+- Import or add master data first
+
+## FAQ
+
+**Q: Can I use this offline?**  
+A: Yes! Use local MSSQL or local MongoDB. No internet required.
+
+**Q: How many users can access simultaneously?**  
+A: Database dependent. MSSQL Express supports up to 32,767 connections. MongoDB has no hard limit.
+
+**Q: Can I customize dropdown values after initial setup?**  
+A: Yes! Use the Dropdown Config page to add new values anytime.
+
+**Q: Is the Excel file required after initial import?**  
+A: No. After importing, all data is in the database. Excel is no longer needed.
+
+**Q: Can I import additional master data later?**  
+A: Yes, but you need to delete existing data first (import button is disabled once data exists).
+
+**Q: How do I add more users?**  
+A: Currently, register through the login page. Admin user management coming soon.
+
+**Q: Can I backup my data?**  
+A: Yes! Export reports to Excel for call logs. Use database backup tools for complete backups.
+
+**Q: Is my data encrypted?**  
+A: Passwords are hashed. For database encryption, use database-level encryption features.
+
+## System Requirements
+
+### Minimum Requirements
+- **CPU**: Dual-core processor
+- **RAM**: 4 GB
+- **Storage**: 500 MB free space
+- **OS**: Windows 10+, macOS 10.14+, Linux (Ubuntu 18.04+)
+- **Browser**: Chrome, Firefox, Safari, Edge (latest versions)
+
+### Recommended Requirements
+- **CPU**: Quad-core processor
+- **RAM**: 8 GB
+- **Storage**: 2 GB free space
+- **Database**: Dedicated server for MSSQL or MongoDB cluster
+
+## Support & Contribution
+
+### Getting Help
+1. Check this README thoroughly
+2. Review error messages carefully
+3. Check database connection settings
+4. Verify Excel file format
+
+### Reporting Issues
+When reporting issues, include:
+- Python version: `python --version`
+- Operating system
+- Database type (MSSQL/MongoDB)
+- Error message (full traceback)
+- Steps to reproduce
+
+### Future Enhancements
+Potential improvements:
+- [ ] Role-based access control (Admin/User)
+- [ ] Advanced search and filtering
+- [ ] Dashboard with analytics
+- [ ] API endpoints for integration
+- [ ] Mobile app companion
+- [ ] Multi-language support
+- [ ] Audit log tracking
+
+## Version History
+
+### Version 1.0.0 (Current)
+- ✅ User authentication with registration and login
+- ✅ Master data management (CRUD operations)
+- ✅ Manual Excel import with duplicate detection
+- ✅ Dropdown configuration page (database-driven)
+- ✅ Call log entry with auto-fill
+- ✅ Reports with date filtering
+- ✅ Excel export functionality
+- ✅ Email integration
+- ✅ MSSQL and MongoDB support
+- ✅ Streamlit Cloud deployment
+- ✅ Standalone executable creation
+- ✅ Auto-bootstrap reconnection
+
+## Credits
+
+**Developer**: Indranil Chatterjee  
+**Version**: 1.0.0  
+**Last Updated**: January 15, 2026  
+**Built With**: Streamlit, Python, MSSQL, MongoDB
 
 ## License
 
 This project is provided as-is for internal use.
+
+---
+
+**For questions or support, contact the development team.**

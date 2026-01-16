@@ -71,7 +71,7 @@ def _render_mssql_section(set_active_repo_func, save_settings_func):
     col1, col2 = st.columns(2)
     with col1:
         mssql_server = st.text_input("Server *", value="")
-        mssql_db = st.text_input("Database *", value="CALLLOG")
+        mssql_db = st.text_input("Database *", value="CALLLOG", disabled=True)
         mssql_user = st.text_input("Username *", value="sa")
     with col2:
         mssql_password = st.text_input("Password *", value="", type="password")
@@ -119,7 +119,7 @@ def _render_mongodb_section(set_active_repo_func, save_settings_func):
     """Render MongoDB connection configuration section."""
     st.markdown("**MongoDB Connection Details**")
     mongo_uri = st.text_input("Mongo URI *", value="mongodb://localhost:27017")
-    mongo_db = st.text_input("Mongo Database *", value="call-logs")
+    mongo_db = st.text_input("Mongo Database *", value="call-logs", disabled=True)
 
     mongo_settings = MongoSettings(uri=mongo_uri.strip(), database=mongo_db.strip())
 

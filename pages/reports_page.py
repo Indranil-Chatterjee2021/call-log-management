@@ -20,7 +20,7 @@ def render_reports_page(repo):
     st.subheader("Export Call Log Data to Excel")
     try:
         # Date range filter
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns([1.5, 1.5, 7])
         with col1:
             start_date = st.date_input("Start Date", value=None, key="start_date")
         with col2:

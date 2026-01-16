@@ -563,3 +563,94 @@ class MSSQLRepository(CallLogRepository):
         finally:
             cursor.close()
             conn.close()
+
+    # ---- Misc/Dropdown Data Configuration ----
+    def misc_data_get(self) -> Optional[Dict[str, Any]]:
+        """Get misc/dropdown data configuration from database."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT Projects, TownTypes, Requesters, Designations, Modules, 
+                       Issues, Solutions, SolvedOn, CallOn, Types
+                FROM [dbo].[MiscData]
+                WHERE ConfigId = 1
+                """
+            )
+            r = cursor.fetchone()
+            if not r:
+                return None
+            
+            import json
+            return {
+                "projects": json.loads(r[0]) if r[0] else [],
+                "town_types": json.loads(r[1]) if r[1] else [],
+                "requesters": json.loads(r[2]) if r[2] else [],
+                "designations": json.loads(r[3]) if r[3] else [],
+                "modules": json.loads(r[4]) if r[4] else [],
+                "issues": json.loads(r[5]) if r[5] else [],
+                "solutions": json.loads(r[6]) if r[6] else [],
+                "solved_on": json.loads(r[7]) if r[7] else [],
+                "call_on": json.loads(r[8]) if r[8] else [],
+                "types": json.loads(r[9]) if r[9] else [],
+            }
+        finally:
+            cursor.close()
+            conn.close()
+
+    def misc_data_save(self, data: Dict[str, Any]) -> None:
+        """Save misc/dropdown data configuration to database."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            import json
+            
+            # Check if config exists
+            cursor.execute("SELECT ConfigId FROM [dbo].[MiscData] WHERE ConfigId = 1")
+            exists = cursor.fetchone() is not None
+            
+            if exists:
+                cursor.execute(
+                    """
+                    UPDATE [dbo].[MiscData]
+                    SET Projects = ?, TownTypes = ?, Requesters = ?, Designations = ?, Modules = ?,
+                        Issues = ?, Solutions = ?, SolvedOn = ?, CallOn = ?, Types = ?, UpdatedDate = GETDATE()
+                    WHERE ConfigId = 1
+                    """,
+                    json.dumps(data.get("projects", [])),
+                    json.dumps(data.get("town_types", [])),
+                    json.dumps(data.get("requesters", [])),
+                    json.dumps(data.get("designations", [])),
+                    json.dumps(data.get("modules", [])),
+                    json.dumps(data.get("issues", [])),
+                    json.dumps(data.get("solutions", [])),
+                    json.dumps(data.get("solved_on", [])),
+                    json.dumps(data.get("call_on", [])),
+                    json.dumps(data.get("types", [])),
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO [dbo].[MiscData] (ConfigId, Projects, TownTypes, Requesters, Designations, Modules,
+                                                   Issues, Solutions, SolvedOn, CallOn, Types, CreatedDate)
+                    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                    """,
+                    json.dumps(data.get("projects", [])),
+                    json.dumps(data.get("town_types", [])),
+                    json.dumps(data.get("requesters", [])),
+                    json.dumps(data.get("designations", [])),
+                    json.dumps(data.get("modules", [])),
+                    json.dumps(data.get("issues", [])),
+                    json.dumps(data.get("solutions", [])),
+                    json.dumps(data.get("solved_on", [])),
+                    json.dumps(data.get("call_on", [])),
+                    json.dumps(data.get("types", [])),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
