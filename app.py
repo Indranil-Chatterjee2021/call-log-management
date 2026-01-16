@@ -130,7 +130,12 @@ def main():
     initialize_session_state()
     
     # Auto-bootstrap from saved config
-    auto_bootstrap_connection()
+    # Disabled by default to avoid applying a server-wide saved DB config
+    # to every new user/session. Set environment variable ENABLE_SERVER_BOOTSTRAP
+    # to 'true' if you explicitly want the server to auto-load the saved config
+    # for all sessions (not recommended for multi-user deployments).
+    if os.getenv("ENABLE_SERVER_BOOTSTRAP", "false").lower() == "true":
+        auto_bootstrap_connection()
     
     # Check if master data exists (no auto-import)
     check_master_data_exists()
@@ -155,10 +160,10 @@ def main():
         """, unsafe_allow_html=True)
         st.stop()
     
-    # Authentication check - show login page if DB is connected but user is not authenticated
-    if st.session_state.active_repo is not None and not st.session_state.authenticated:
-        render_login_page(st.session_state.active_repo)
-        st.stop()
+    # NOTE: Do not force the login page here. Allow the Settings page to be
+    # reachable even when a backend is configured but the current session is
+    # not authenticated. Authentication will be enforced when the user attempts
+    # to navigate to protected pages (Master Data, Types, Call Log, Reports).
     
     # Determine default page based on setup status (only if not already set)
     if 'current_page_index' not in st.session_state:
@@ -183,7 +188,13 @@ def main():
     
     # Update current page index when navigation changes
     st.session_state.current_page_index = page_options.index(page)
-    
+
+    # If a backend is configured but the session is not authenticated,
+    # allow access to Settings but require login for other pages.
+    if st.session_state.active_repo is not None and not st.session_state.authenticated and page != "Settings":
+        render_login_page(st.session_state.active_repo)
+        st.stop()
+
     st.divider()
     
     # Handle Logout immediately
