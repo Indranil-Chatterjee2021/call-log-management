@@ -8,11 +8,40 @@ from pymongo import ASCENDING, MongoClient
 # --- MongoClient Singleton Cache ---
 _mongo_clients = {}
 
+
 def get_mongo_client(mongo_uri: str) -> MongoClient:
-    """Get or create a singleton MongoClient for the given URI."""
+    """Get or create a singleton MongoClient for the given URI.
+
+    Defensive behaviour: if the cached client was previously closed (for
+    example after a logout that calls `repo.close()`), attempting to use it
+    raises pymongo.errors.InvalidOperation. We detect that by issuing a
+    lightweight `ping` and recreate the client if it's closed.
+    """
+    # Fast path: not cached -> create and store
     if mongo_uri not in _mongo_clients:
         _mongo_clients[mongo_uri] = MongoClient(mongo_uri)
-    return _mongo_clients[mongo_uri]
+        return _mongo_clients[mongo_uri]
+
+    client = _mongo_clients[mongo_uri]
+    # Check if the cached client is usable. A closed client will raise
+    # InvalidOperation when used; only in that case we recreate it.
+    try:
+        # Use a short timeout so this check is quick in failure scenarios.
+        client.admin.command("ping", serverSelectionTimeoutMS=2000)
+        return client
+    except Exception as e:
+        # Import here to avoid adding the dependency at module import time
+        # beyond the existing MongoClient import.
+        from pymongo.errors import InvalidOperation
+
+        if isinstance(e, InvalidOperation):
+            # Replace closed client with a fresh one
+            new_client = MongoClient(mongo_uri)
+            _mongo_clients[mongo_uri] = new_client
+            return new_client
+        # For other exceptions (network/DNS issues), re-raise so callers
+        # can observe the underlying connectivity error instead of masking it.
+        raise
 from pymongo.collection import Collection
 
 from .base import CallLogRepository, CallLogRecord, DateRange, MasterRecord, UserRecord
@@ -44,7 +73,15 @@ class MongoRepository(CallLogRepository):
         Close the underlying MongoClient connection pool.
         Safe to call multiple times.
         """
-        self._client.close()
+        # Close the client and remove it from the module-level cache so
+        # future calls to get_mongo_client() will create a fresh client.
+        try:
+            self._client.close()
+        finally:
+            # Remove any cached entries that reference this closed client.
+            keys_to_remove = [k for k, v in _mongo_clients.items() if v is self._client]
+            for k in keys_to_remove:
+                del _mongo_clients[k]
 
     # ---- Master ----
     def master_list(self) -> List[MasterRecord]:

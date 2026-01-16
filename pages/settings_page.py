@@ -3,6 +3,9 @@ Settings Page Module
 Handles database backend configuration (MSSQL/MongoDB)
 """
 import streamlit as st
+from urllib.parse import urlparse, urlunparse, quote_plus
+import re
+
 from settings_store import (
     AppSettings,
     MongoSettings,
@@ -118,30 +121,61 @@ def _render_mssql_section(set_active_repo_func, save_settings_func):
 def _render_mongodb_section(set_active_repo_func, save_settings_func):
     """Render MongoDB connection configuration section."""
     st.markdown("**MongoDB Connection Details**")
-    mongo_uri = st.text_input("Mongo URI *", value="mongodb://localhost:27017")
-    mongo_db = st.text_input("Mongo Database *", value="call-logs", disabled=True)
+    # Mask the URI in the UI so credentials don't show in plaintext.
+    # Use placeholder to indicate default; if left blank we'll use the default locally.
+    # Streamlit's password input shows a reveal (eye) icon which toggles visibility.
+    # We intentionally hide that reveal button via a small CSS injection so the
+    # value cannot be exposed by clicking the eye.
+    st.markdown(
+        """
+        <style>
+        /* Hide Streamlit's password reveal/hide button for inputs that contain 'password' in the aria-label */
+        button[aria-label*="password"] {
+            display: none !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    mongo_settings = MongoSettings(uri=mongo_uri.strip(), database=mongo_db.strip())
+    mongo_uri_input = st.text_input(
+        "Mongo URI *",
+        value="",
+        placeholder="mongodb://localhost:27017",
+        type="password",
+    )
+    mongo_db = st.text_input("Mongo Database *", value="call-logs", disabled=True)
 
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         if st.button("Test MongoDB Connection", type="secondary"):
-            ok, msg = test_mongo_connection(mongo_settings)
-            (st.success if ok else st.error)(msg)
+            # Validate and encode
+            encoded_uri, err = _encode_mongo_uri(mongo_uri_input)
+            if err:
+                st.error(err)
+            else:
+                mongo_settings = MongoSettings(uri=encoded_uri, database=mongo_db.strip())
+                ok, msg = test_mongo_connection(mongo_settings)
+                (st.success if ok else st.error)(msg)
     with col_btn2:
         if st.button("Save & Activate MongoDB", type="primary"):
-            ok, msg = test_mongo_connection(mongo_settings)
-            if not ok:
-                st.error(msg)
+            encoded_uri, err = _encode_mongo_uri(mongo_uri_input)
+            if err:
+                st.error(err)
             else:
-                app_settings = AppSettings(backend="mongodb", mssql=None, mongodb=mongo_settings)
-                # Only save settings if this is first time setup
-                if st.session_state.active_repo is None:
-                    save_settings_func(app_settings)  # stored into appConfig collection
-                save_bootstrap(app_settings)  # local bootstrap for next startup
-                set_active_repo_func("mongodb", mongo_uri=mongo_settings.uri, mongo_db=mongo_settings.database)
-                st.success("Database connected! Please login to continue.")
-                st.rerun()
+                mongo_settings = MongoSettings(uri=encoded_uri, database=mongo_db.strip())
+                ok, msg = test_mongo_connection(mongo_settings)
+                if not ok:
+                    st.error(msg)
+                else:
+                    app_settings = AppSettings(backend="mongodb", mssql=None, mongodb=mongo_settings)
+                    # Only save settings if this is first time setup
+                    if st.session_state.active_repo is None:
+                        save_settings_func(app_settings)  # stored into appConfig collection
+                    save_bootstrap(app_settings)  # local bootstrap for next startup
+                    set_active_repo_func("mongodb", mongo_uri=mongo_settings.uri, mongo_db=mongo_settings.database)
+                    st.success("Database connected! Please login to continue.")
+                    st.rerun()
 
 
 def _render_email_config_section():
@@ -237,6 +271,65 @@ def _render_email_config_section():
             except Exception as e:
                 st.error(f"❌ Error deleting config: {str(e)}")
 
+def _encode_mongo_uri(uri: str):
+        """Validate and return (encoded_uri, error_message).
+
+        Rules:
+        - Empty URI -> error (we do not silently fallback to localhost)
+        - Scheme must be 'mongodb' or 'mongodb+srv'
+        - Hostname must be present
+        - If credentials are present they will be URL-encoded (avoids double-encoding)
+        - If the URI contains an '@' but username/password cannot be parsed, return an error
+        """
+        uri = (uri or "").strip()
+        if not uri:
+            return None, "Please enter the Mongo URI (e.g. mongodb://user:pass@host:27017)."
+
+        parsed = urlparse(uri)
+
+        # Basic validation
+        if not parsed.scheme or parsed.scheme not in ("mongodb", "mongodb+srv"):
+            return None, "Invalid Mongo URI: missing or unsupported scheme (expected 'mongodb://' or 'mongodb+srv://')."
+        if not parsed.hostname:
+            return None, "Invalid Mongo URI: missing hostname. Please include host (e.g. host:27017)."
+
+        raw = uri
+        # If there is an '@' in the netloc but parser didn't extract username/password,
+        # it's likely the URI contains characters that prevented parsing.
+        if "@" in parsed.netloc and (parsed.username is None and parsed.password is None):
+            return None, (
+                "Unable to parse credentials from the provided URI. "
+                "Please URL-encode special characters in username/password or provide credentials in the form user:pass@host."
+            )
+
+        username = parsed.username
+        password = parsed.password
+
+        def _maybe_quote(s: str) -> str:
+            if s is None:
+                return None
+            # If already contains percent-encoded octets, assume it's encoded
+            if re.search(r"%[0-9A-Fa-f]{2}", s):
+                return s
+            return quote_plus(s)
+
+        uq = _maybe_quote(username)
+        pq = _maybe_quote(password)
+
+        host = parsed.hostname or ""
+        port = f":{parsed.port}" if parsed.port else ""
+
+        netloc = ""
+        if uq is not None:
+            netloc += uq
+        if pq is not None:
+            netloc += f":{pq}"
+        if uq is not None:
+            netloc += "@"
+        netloc += f"{host}{port}"
+
+        new_parsed = parsed._replace(netloc=netloc)
+        return urlunparse(new_parsed), None
 
 def _render_logout_section():
     """Render logout section."""
@@ -266,4 +359,13 @@ def _render_logout_section():
         st.session_state.current_user = None
         st.session_state.bootstrap_attempted = True  # avoid immediate auto-bootstrapping in same session
         st.session_state.logged_out = True
+        # Clear UI widget values so they don't reappear after logout/refresh
+        for k in [
+            "login_username", "login_password",
+            "reg_username", "reg_password", "reg_password_confirm",
+            "reset_username", "reset_new_password", "reset_confirm_password",
+        ]:
+            if k in st.session_state:
+                del st.session_state[k]
+
         st.rerun()
