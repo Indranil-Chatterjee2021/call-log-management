@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from db_config import get_db_connection
+from utils.db_config import get_db_connection
 
 from .base import CallLogRepository, CallLogRecord, DateRange, MasterRecord, UserRecord
 

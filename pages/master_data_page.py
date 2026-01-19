@@ -14,8 +14,7 @@ def render_master_data_page(repo, dropdowns):
         repo: Active repository instance
         dropdowns: Dictionary of dropdown values
     """
-    st.title("Master Data Management")
-    st.subheader("CRUD Operations for Master Data")
+    st.subheader("📂 Masters Management")
     
     # Display success message if it exists (from previous operation)
     if 'master_success_msg' in st.session_state:
@@ -40,13 +39,13 @@ def render_master_data_page(repo, dropdowns):
         ["View All", "Add New", "Update", "Delete"],
         index=["View All", "Add New", "Update", "Delete"].index(st.session_state.master_active_tab),
         horizontal=True,
+        label_visibility="hidden",
         key="master_tab_selector"
     )
     
     # Update session state
     st.session_state.master_active_tab = tab_selection
-    
-    st.divider()
+    st.markdown("<hr style='margin: 5px 0px; opacity: 0.5;'>", unsafe_allow_html=True)
     
     # Render the selected tab
     if tab_selection == "View All":
@@ -72,7 +71,7 @@ def _df_from_records(records: list[dict], keep_id: bool = False) -> pd.DataFrame
 
 def _render_view_all_tab(repo):
     """Render view all records tab."""
-    st.header("All Master Records")
+    st.subheader("📋 All Master Records")
     try:
         df = _df_from_records(repo.master_list())
         st.dataframe(df, use_container_width=True)
@@ -87,10 +86,7 @@ def _render_view_all_tab(repo):
             st.divider()
             st.subheader("📥 Import Master Data from Excel")
             _handle_excel_import(repo)
-        else:
-            with col2:
-                st.button("📥 Import from Excel", disabled=True, help="Import disabled - data already exists. Delete existing data to re-import.")
-                
+               
     except Exception as e:
         st.error(f"Error loading data: {e}")
 
@@ -219,7 +215,7 @@ def _handle_excel_import(repo):
 
 def _render_add_new_tab(repo, dropdowns):
     """Render add new record tab."""
-    st.header("Add New Master Record")
+    st.subheader("➕ Add New Master Record")
     with st.form("add_master_form", width=1024):
         col1, col2 = st.columns(2)
         with col1:
@@ -270,7 +266,7 @@ def _render_add_new_tab(repo, dropdowns):
 
 def _render_update_tab(repo, dropdowns):
     """Render update record tab."""
-    st.header("Update Master Record")
+    st.subheader("🔄 Update Master Record")
     try:
         all_records = repo.master_list()
         df = _df_from_records(all_records, keep_id=True)
@@ -350,7 +346,7 @@ def _render_update_tab(repo, dropdowns):
 
 def _render_delete_tab(repo):
     """Render delete record tab."""
-    st.header("Delete Master Record")
+    st.subheader("❌ Delete Master Record")
     try:
         df = _df_from_records(repo.master_list(), keep_id=True)
         if len(df) > 0:

@@ -14,8 +14,7 @@ def render_call_log_page(repo, dropdowns):
         repo: Active repository instance
         dropdowns: Dictionary of dropdown values
     """
-    st.title("Call Log Entry")
-    st.subheader("Enter New Call Log Entry")
+    st.subheader("📝 Enter New Call Log Entry")
     
     # Initialize session state for form values
     if 'call_form_values' not in st.session_state:

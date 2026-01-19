@@ -1,113 +1,157 @@
 /* 1. Reset & Global Header/Footer */
+html, body, [data-testid="stAppViewContainer"] {
+    overflow: hidden; /* This prevents the main window from scrolling */
+}
+
 header[data-testid="stHeader"] {
-    display: none;
+  visibility: hidden;
 }
 
 /* Hide default Streamlit sidebar navigation */
 section[data-testid="stSidebar"] {
-    display: none;
+  display: none;
 }
 
 .title-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    background: linear-gradient(90deg, #1f77b4 0%, #2ca02c 100%);
-    color: white;
-    padding: 10px 20px;
-    text-align: center;
-    font-size: 22px;
-    font-weight: bold;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(90deg, #1f77b4 0%, #2ca02c 100%);
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
 }
 
 .footer {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    background: linear-gradient(90deg, #1f77b4 0%, #2ca02c 100%);
-    color: maroon;
-    text-align: center;
-    padding: 10px 0;
-    font-size: 20px;
-    border-top: 1px solid #e0e0e0;
-    z-index: 999;
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background: linear-gradient(90deg, #1f77b4 0%, #2ca02c 100%);
+  color: maroon;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 20px;
+  border-top: 1px solid #e0e0e0;
+  z-index: 999;
+}
+
+.fixed-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  background-color: #0E1117;
+  font-size: medium;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  color: antiquewhite;
+  border-top: 1px solid #333;
+  z-index: 999999;
+  text-align: center;
+  line-height: 40px;
 }
 
 /* 2. CENTER THE MAIN CONTENT AREA */
 .main .block-container {
-    padding-top: 110px;
-    padding-bottom: 100px;
-    max-width: 1000px !important; 
-    margin-left: auto !important;
-    margin-right: auto !important;
+  padding-top: 2rem;
+  padding-bottom: 0px;
+  max-width: 1200px !important;
+  height: 100vh;
+}
+
+.sub-header-text {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    margin-top: -20px !important; 
+    margin-bottom: 10px !important;
+    color: #7FFFD4;
+    font-weight: bold;
+    font-size: 24px;
+}
+
+.side-icon {
+    padding-left: 25px;  /* Adjust this value for the right icon gap */
+    padding-right: 25px; /* Adjust this value for the left icon gap */
+    font-size: 25px;     /* You can also make the icons slightly smaller/larger here */
 }
 
 /* 3. Navigation Centering */
 .stRadio {
-    margin-top: -15px;
-    text-align: center;
+  margin-top: -15px;
+  text-align: center;
 }
-.stRadio > div {
-    justify-content: center;
+
+.stRadio>div {
+  justify-content: center;
 }
 
 /* 4. Input Symmetry */
-div[data-testid="stTextInput"] > div,
-div[data-testid="stSelectbox"] > div,
-div[data-testid="stDateInput"] > div {
-    width: 100% !important;
+div[data-testid="stTextInput"]>div,
+div[data-testid="stSelectbox"]>div,
+div[data-testid="stDateInput"]>div {
+  width: 100% !important;
 }
 
 /* 5. FORM SUBMIT BUTTONS (Add Record / Update Record) */
 div[data-testid="stFormSubmitButton"] button {
-    background-color: #2ca02c !important; /* Green */
-    color: white !important;
-    border: none !important;
-    padding: 0.5rem 2rem !important;
-    font-weight: bold !important;
-    width: 200px !important; /* Fixed width looks cleaner */
-    transition: 0.3s;
+  background-color: #2ca02c !important;
+  /* Green */
+  color: white !important;
+  border: none !important;
+  padding: 0.5rem 2rem !important;
+  font-weight: bold !important;
+  width: 200px !important;
+  /* Fixed width looks cleaner */
+  transition: 0.3s;
 }
 
 /* 6. STANDARD BUTTONS (Auto-fill / Delete) */
 
 /* Blue Auto-fill Button Fix */
 .autofill-btn {
-    background-color: #1f77b4 !important; /* Blue */
-    color: white !important;
-    border: none !important;
-    font-weight: bold !important;
-    margin-top: 28px !important; /* This pushes the button down to align with input */
-    width: 100% !important;
+  background-color: #1f77b4 !important;
+  /* Blue */
+  color: white !important;
+  border: none !important;
+  font-weight: bold !important;
+  margin-top: 28px !important;
+  /* This pushes the button down to align with input */
+  width: 100% !important;
 }
 
 /* Red Delete Button Fix */
-.delete-btn, div[data-testid="stButton"] button {
-    background-color: #d32f2f !important; /* Red */
-    color: white !important;
-    border: none !important;
-    font-weight: bold !important;
-    width: 200px !important;
+.delete-btn,
+div[data-testid="stButton"] button {
+  background-color: #d32f2f !important;
+  /* Red */
+  color: white !important;
+  border: none !important;
+  font-weight: bold !important;
+  width: 200px !important;
 }
 
 /* 7. Vertical Alignment for Auto-fill Row */
 .auto-fill-wrapper {
-    display: flex;
-    align-items: flex-end;
-    height: 100%;
-    padding-bottom: 1px;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  padding-bottom: 1px;
 }
 
 /* 8. Tab Labels - Increase Font Size */
 button[data-baseweb="tab"] {
-    font-size: 16px !important;
-    font-weight: 500 !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
 }
 
-button[data-baseweb="tab"] > div {
-    font-size: 16px !important;
+button[data-baseweb="tab"]>div {
+  font-size: 16px !important;
 }

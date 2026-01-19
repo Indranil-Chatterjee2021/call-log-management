@@ -2,7 +2,7 @@
 MSSQL Database Initialization
 Automatically creates all required tables for the Call Log Application
 """
-from db_config import get_db_connection
+from utils.db_config import get_db_connection
 
 
 def init_mssql_database() -> tuple[bool, str]:

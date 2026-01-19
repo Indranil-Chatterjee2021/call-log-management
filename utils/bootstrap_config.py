@@ -5,7 +5,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
-from settings_store import AppSettings
+from utils.settings_store import AppSettings
 
 
 BOOTSTRAP_FILE = Path(__file__).resolve().parent / ".db_config.json"
@@ -31,7 +31,7 @@ def load_bootstrap() -> Optional[AppSettings]:
         return None
     # settings_store.AppSettings accepts nested dataclasses, but JSON is dicts.
     # We'll import constructors lazily to avoid cycles.
-    from settings_store import MongoSettings, MSSQLSettings
+    from utils.settings_store import MongoSettings, MSSQLSettings
 
     mssql = data.get("mssql")
     mongodb = data.get("mongodb")
