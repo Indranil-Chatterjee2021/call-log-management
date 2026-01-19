@@ -6,7 +6,7 @@ import os
 
 from dotenv import load_dotenv
 
-from db_config import get_db_connection
+from utils.db_config import get_db_connection
 from storage import get_repository
 
 def create_tables():

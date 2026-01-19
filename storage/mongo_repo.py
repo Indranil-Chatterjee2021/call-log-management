@@ -133,16 +133,20 @@ class MongoRepository(CallLogRepository):
         res = self._calllog.insert_one(doc)
         return str(res.inserted_id)
 
-    def calllog_list(self, date_range: DateRange) -> List[CallLogRecord]:
-        query: Dict[str, Any] = {}
-        if date_range.start or date_range.end:
-            query["Date"] = {}
-            if date_range.start:
-                query["Date"]["$gte"] = date_range.start
-            if date_range.end:
-                query["Date"]["$lte"] = date_range.end
-        docs = list(self._calllog.find(query).sort("Date", -1))
-        return [_doc_to_calllog(d) for d in docs]
+    def calllog_list(self, date_range: Optional[DateRange] = None) -> List[CallLogRecord]:
+      query: Dict[str, Any] = {}
+      
+      # Check if a date_range object was provided AND has at least one bound set
+      if date_range and (date_range.start or date_range.end):
+          query["Date"] = {}
+          if date_range.start:
+              query["Date"]["$gte"] = date_range.start
+          if date_range.end:
+              query["Date"]["$lte"] = date_range.end
+              
+      # If date_range is None, query remains {}, fetching all documents
+      docs = list(self._calllog.find(query).sort("Date", -1))
+      return [_doc_to_calllog(d) for d in docs]
 
     # ---- User Management ----
     def user_list(self) -> List[UserRecord]:

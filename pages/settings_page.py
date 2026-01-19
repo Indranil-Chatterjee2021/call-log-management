@@ -10,15 +10,14 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from settings_store import (
+from utils.settings_store import (
     AppSettings,
     MongoSettings,
     MSSQLSettings,
     test_mongo_connection,
     test_mssql_connection,
 )
-from bootstrap_config import save_bootstrap
-
+from utils.bootstrap_config import save_bootstrap
 
 def render_settings_page(is_cloud: bool, set_active_repo_func, save_settings_func):
     """
@@ -29,8 +28,7 @@ def render_settings_page(is_cloud: bool, set_active_repo_func, save_settings_fun
         set_active_repo_func: Function to set the active repository
         save_settings_func: Function to save settings to database
     """
-    st.title("Settings")
-    st.subheader("Choose database backend (required)")
+    st.subheader("💾 Database settings (required)")
 
     # Check if a backend is already active
     active_backend = st.session_state.get("active_backend")
@@ -57,15 +55,12 @@ def render_settings_page(is_cloud: bool, set_active_repo_func, save_settings_fun
             index=None,
             help="You must select a backend before using the application.",
         )
-        
-        st.divider()
+        st.markdown("<hr style='margin: 5px 0px; opacity: 0.5;'>", unsafe_allow_html=True)
 
         if backend == "MSSQL":
             _render_mssql_section(set_active_repo_func, save_settings_func)
         elif backend == "MongoDB":
-            _render_mongodb_section(set_active_repo_func, save_settings_func)
-
-    st.divider()
+            _render_mongodb_section(is_cloud, set_active_repo_func, save_settings_func)
 
     # Show presence of .db_config.json in working directory (useful on cloud)
     try:
@@ -75,12 +70,8 @@ def render_settings_page(is_cloud: bool, set_active_repo_func, save_settings_fun
         # Non-fatal: ignore filesystem errors in restrictive environments
         pass
 
-    # Email Configuration Section (only if backend is active)
-    if st.session_state.active_repo is not None:
-        _render_email_config_section()
 
-
-def _render_mssql_section(set_active_repo_func, save_settings_func):
+def _render_mssql_section(is_cloud: bool, set_active_repo_func, save_settings_func):
     """Render MSSQL connection configuration section."""
     st.markdown("**MSSQL Connection Details**")
     col1, col2 = st.columns(2)
@@ -100,37 +91,36 @@ def _render_mssql_section(set_active_repo_func, save_settings_func):
         driver=mssql_driver.strip() or "{ODBC Driver 17 for SQL Server}",
     )
 
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("Test MSSQL Connection", type="secondary"):
-            ok, msg = test_mssql_connection(mssql_settings)
-            (st.success if ok else st.error)(msg)
-    with col_btn2:
-        if st.button("Save & Activate MSSQL", type="primary"):
-            ok, msg = test_mssql_connection(mssql_settings)
-            if not ok:
-                st.error(msg)
-            else:
-                # Auto-create tables for local MSSQL
-                with st.spinner("Initializing database tables..."):
-                    from db_init_mssql import init_mssql_database
-                    table_ok, table_msg = init_mssql_database()
-                    if table_ok:
-                        st.success(table_msg)
-                    else:
-                        st.warning(table_msg)
-                
-                app_settings = AppSettings(backend="mssql", mssql=mssql_settings, mongodb=None)
-                # Only save settings if this is first time setup
-                if st.session_state.active_repo is None:
-                    save_settings_func(app_settings)  # stored into dbo.AppConfig
-                save_bootstrap(app_settings)  # local bootstrap for next startup
-                set_active_repo_func("mssql")
-                st.success("Database connected! Please login to continue.")
-                st.rerun()
+    if st.button("Save & Activate MSSQL", type="primary"):
+      ok, msg = test_mssql_connection(mssql_settings)
+      if not ok:
+          st.error(msg)
+      else:
+          # Auto-create tables for local MSSQL
+          st.success(msg)
+          with st.spinner("Initializing database tables..."):
+              from utils.db_init_mssql import init_mssql_database
+              table_ok, table_msg = init_mssql_database()
+              if table_ok:
+                  st.success(table_msg)
+              else:
+                  st.warning(table_msg)
+          
+          app_settings = AppSettings(backend="mssql", mssql=mssql_settings, mongodb=None)
+          # Only save settings if this is first time setup
+          if st.session_state.active_repo is None:
+              save_settings_func(app_settings)  # stored into dbo.AppConfig
+          # If False, then call save_bootstrap
+          if not is_cloud:
+              save_bootstrap(app_settings)
+              print("DEBUG: Local environment detected. Bootstrap settings saved.")
+
+          st.write(f"Cloud Detection Status: {is_cloud}")
+          set_active_repo_func("mssql")
+          redirect_to()
 
 
-def _render_mongodb_section(set_active_repo_func, save_settings_func):
+def _render_mongodb_section(is_cloud: bool, set_active_repo_func, save_settings_func):
     """Render MongoDB connection configuration section."""
     st.markdown("**MongoDB Connection Details**")
     # Mask the URI in the UI so credentials don't show in plaintext.
@@ -156,166 +146,33 @@ def _render_mongodb_section(set_active_repo_func, save_settings_func):
         placeholder="mongodb://localhost:27017",
         type="password",
     )
-    mongo_db = st.text_input("Enter Mongo Database Name *", value="", disabled=False)
+    mongo_db = st.text_input("Enter Mongo Database Name *", placeholder="call-logs", disabled=False)
 
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("Test MongoDB Connection", type="secondary"):
-            # Validate and encode
-            encoded_uri, err = _encode_mongo_uri(mongo_uri_input)
-            if err:
-                st.error(err)
-            else:
-                mongo_settings = MongoSettings(uri=encoded_uri, database=mongo_db.strip())
-                ok, msg = test_mongo_connection(mongo_settings)
-                (st.success if ok else st.error)(msg)
-    with col_btn2:
-        if st.button("Save & Activate MongoDB", type="primary"):
-            encoded_uri, err = _encode_mongo_uri(mongo_uri_input)
-            if err:
-                st.error(err)
-            else:
-                mongo_settings = MongoSettings(uri=encoded_uri, database=mongo_db.strip())
-                ok, msg = test_mongo_connection(mongo_settings)
-                if not ok:
-                    st.error(msg)
-                else:
-                    app_settings = AppSettings(backend="mongodb", mssql=None, mongodb=mongo_settings)
-                    # Only save settings if this is first time setup
-                    IS_STREAMLIT_CLOUD = os.getenv("IS_STREAMLIT_CLOUD", "false").lower() == "true"
-                    if st.session_state.active_repo is None:
-                        save_settings_func(app_settings)  # stored into appConfig collection
-                    if IS_STREAMLIT_CLOUD: save_bootstrap(app_settings)  # local bootstrap for next startup
-                    set_active_repo_func("mongodb", mongo_uri=mongo_settings.uri, mongo_db=mongo_settings.database)
-                    st.success("Database connected! Please login to continue.")
-                    st.rerun()
+    if st.button("Save & Activate MongoDB", type="primary"):
+      encoded_uri, err = _encode_mongo_uri(mongo_uri_input)
+      if err:
+          st.error(err)
+      else:
+          mongo_settings = MongoSettings(uri=encoded_uri, database=mongo_db.strip())
+          ok, msg = test_mongo_connection(mongo_settings)
+          if not ok:
+              st.error(msg)
+          else:
+              st.success(msg)
+              app_settings = AppSettings(backend="mongodb", mssql=None, mongodb=mongo_settings)
+              print(f"DEBUG: IS_STREAMLIT_CLOUD is {is_cloud}")
+              if st.session_state.active_repo is None:
+                  save_settings_func(app_settings)  # stored into appConfig collection
+              # If False, then call save_bootstrap
+              if not is_cloud:
+                  save_bootstrap(app_settings)
+                  print("DEBUG: Local environment detected. Bootstrap settings saved.")
+              else:
+                  print("DEBUG: Cloud environment detected. Skipping bootstrap save.")
+              st.write(f"Cloud Detection Status: {is_cloud}")
+              set_active_repo_func("mongodb", mongo_uri=mongo_settings.uri, mongo_db=mongo_settings.database)
+              redirect_to()          
 
-
-def _render_email_config_section():
-    """Render email configuration section."""
-    st.divider()
-    st.subheader("📧 Email Configuration (Optional)")
-    st.info("Configure SMTP settings to enable email functionality in Reports.")
-    
-    repo = st.session_state.active_repo
-    
-    # Load existing config
-    existing_config = repo.email_config_get()
-    
-    with st.form("email_config_form", width=1024):
-        col1, col2 = st.columns(2)
-        with col1:
-            smtp_server = st.text_input(
-                "SMTP Server", 
-                value=existing_config.get("smtp_server", "smtp.gmail.com") if existing_config else "smtp.gmail.com",
-                help="e.g., smtp.gmail.com, smtp.office365.com"
-            )
-            smtp_port = st.number_input(
-                "SMTP Port", 
-                value=existing_config.get("smtp_port", 587) if existing_config else 587,
-                min_value=1,
-                max_value=65535
-            )
-        with col2:
-            smtp_user = st.text_input(
-                "Email Address", 
-                value=existing_config.get("smtp_user", "") if existing_config else "",
-                help="Your email address"
-            )
-            smtp_password = st.text_input(
-                "Email Password", 
-                value="",
-                type="password",
-                help="For Gmail, use App Password (not your regular password)"
-            )
-        
-        st.markdown("""
-        **Note for Gmail users:**
-        - Enable 2-Factor Authentication
-        - Generate an App Password: [Google Account → Security → App passwords](https://myaccount.google.com/apppasswords)
-        - Use the App Password here, not your regular password
-        """)
-        
-        col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
-        
-        with col_btn1:
-            test_btn = st.form_submit_button("🧪 Test Email", type="secondary")
-        with col_btn2:
-            save_btn = st.form_submit_button("💾 Save Config", type="primary")
-        with col_btn3:
-            delete_btn = st.form_submit_button("🗑️ Delete Config", type="secondary")
-        
-        if test_btn:
-            if not smtp_server or not smtp_user or not smtp_password:
-                st.error("All fields are required for testing!")
-            else:
-                # Test email connection
-                try:
-                    import smtplib
-                    with smtplib.SMTP(smtp_server, smtp_port) as server:
-                        server.starttls()
-                        server.login(smtp_user, smtp_password)
-                    st.success("✅ Email configuration is valid!")
-                except Exception as e:
-                    st.error(f"❌ Email test failed: {str(e)}")
-        
-        if save_btn:
-            if not smtp_server or not smtp_user:
-                st.error("SMTP Server and Email Address are required!")
-            else:
-                try:
-                    config = {
-                        "smtp_server": smtp_server,
-                        "smtp_port": int(smtp_port),
-                        "smtp_user": smtp_user,
-                        "smtp_password": smtp_password if smtp_password else (existing_config.get("smtp_password", "") if existing_config else ""),
-                    }
-                    repo.email_config_save(config)
-                    st.success("✅ Email configuration saved successfully!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error saving config: {str(e)}")
-        
-        if delete_btn:
-            try:
-                repo.email_config_delete()
-                st.success("✅ Email configuration deleted!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Error deleting config: {str(e)}")
-
-
-def _check_db_config():
-    """Check for `.db_config.json` in the working directory and show a redacted summary.
-
-    This is safe to leave in production: values that look like passwords/secrets are redacted.
-    """
-    p = Path(".db_config.json")
-    if not p.exists():
-        st.info("`.db_config.json` not found in application working directory.")
-        return
-
-    try:
-        stat = p.stat()
-        st.success("`.db_config.json` exists")
-        st.write({
-            "path": str(p),
-            "size_bytes": stat.st_size,
-            "last_modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-        })
-
-        # Show keys but mask likely secrets
-        data = json.loads(p.read_text())
-        masked = {}
-        for k, v in (data.items() if isinstance(data, dict) else []):
-            lk = k.lower()
-            if any(s in lk for s in ("password", "secret", "pwd", "token", "key")):
-                masked[k] = "⛔ REDACTED ⛔"
-            else:
-                masked[k] = v
-        st.json(masked)
-    except Exception as e:
-        st.error(f"Could not read/parse `.db_config.json`: {e}")
 
 def _encode_mongo_uri(uri: str):
         """Validate and return (encoded_uri, error_message).
@@ -377,41 +234,13 @@ def _encode_mongo_uri(uri: str):
         new_parsed = parsed._replace(netloc=netloc)
         return urlunparse(new_parsed), None
 
-def _render_logout_section():
-    """Render logout section."""
-    st.divider()
-    st.subheader("Logout")
-    st.markdown(
-        """
-        This will **log you out of the current session** and show a logout screen.
-        
-        Note: Streamlit runs as a server process, so "closing the application" means **closing the browser tab**.
-        Your saved configuration remains, so the app can still auto-connect next time.
-        """
-    )
 
-    if st.button("Logout", type="secondary", use_container_width=True):
-        # Close DB connections for this repo if supported
-        repo_obj = st.session_state.active_repo
-        if hasattr(repo_obj, "close") and callable(getattr(repo_obj, "close")):
-            try:
-                repo_obj.close()
-            except Exception:
-                # Best-effort; ignore errors on close
-                pass
-        st.session_state.active_backend = None
-        st.session_state.active_repo = None
-        st.session_state.authenticated = False
-        st.session_state.current_user = None
-        st.session_state.bootstrap_attempted = True  # avoid immediate auto-bootstrapping in same session
-        st.session_state.logged_out = True
-        # Clear UI widget values so they don't reappear after logout/refresh
-        for k in [
-            "login_username", "login_password",
-            "reg_username", "reg_password", "reg_password_confirm",
-            "reset_username", "reset_new_password", "reset_confirm_password",
-        ]:
-            if k in st.session_state:
-                del st.session_state[k]
+def redirect_to():
+  # Check if Master Data exists to decide where to send the user after login
+  if st.session_state.get('master_data_exists', False):
+      st.session_state.current_page_index = 4  # Send to Call Log Entry
+  else:
+      st.session_state.current_page_index = 2  # Send to Master Management to finish setup
 
-        st.rerun()
+  st.success("Database connected! Redirecting to Login...")
+  st.rerun()

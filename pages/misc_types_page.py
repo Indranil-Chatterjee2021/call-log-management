@@ -13,8 +13,7 @@ def render_misc_types_page(repo, dropdowns):
         repo: Active repository instance
         dropdowns: Dictionary of current dropdown values
     """
-    st.title("Types Configuration")
-    st.subheader("Manage different type values used throughout the application")
+    st.subheader("⚙️ Manage different type values used throughout the application")
     
     # Display success message if it exists
     if 'misc_success_msg' in st.session_state:
@@ -24,7 +23,7 @@ def render_misc_types_page(repo, dropdowns):
     st.info("Add new values to any dropdown field below. Values are stored in the database and will appear in dropdown menus throughout the app.")
     
     # Field selection outside form for real-time preview
-    st.subheader("Add New Type Values")
+    st.subheader("✨ Add New Type Values")
     
     # Map display names to internal keys
     field_map = {
