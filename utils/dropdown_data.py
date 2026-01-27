@@ -23,7 +23,7 @@ def get_dropdown_values(repo=None):
     
     try:
         # Get dropdown values from database
-        data = repo.misc_data_get()
+        data = repo.metadata_get()
         
         if data:
             return {

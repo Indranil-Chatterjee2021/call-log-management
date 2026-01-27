@@ -1,19 +1,10 @@
 # Database Configuration Template
 # Copy this file to .env and fill in your database credentials
 #
-# Select backend:
-# - DB_BACKEND=mssql   (default)
-# - DB_BACKEND=mongodb
+# Select backend: MongoDB is the only supported backend now
+DB_BACKEND=mongodb
 
-DB_BACKEND=mssql
-
-DB_SERVER=localhost
-DB_NAME=CALLLOG
-DB_USER=sa
-DB_PASSWORD=your_password_here
-DB_DRIVER={ODBC Driver 17 for SQL Server}
-
-# MongoDB (used only when DB_BACKEND=mongodb)
+# MongoDB connection (required)
 MONGO_URI=mongodb://localhost:27017
 MONGO_DB=call-logs
 

@@ -6,54 +6,75 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
-from pages.about_page import render_about_page
+from utils.activation import get_hardware_id
+from views.about_page import render_about_page
 from utils.dropdown_data import get_dropdown_values
 from storage import get_repository
 from utils.logout import logout
 from utils.settings_store import AppSettings, save_settings
 from utils.bootstrap_config import load_bootstrap
-from pages.settings_page import render_settings_page
-from pages.login_page import render_login_page
-from pages.master_data_page import render_master_data_page
-from pages.call_log_page import render_call_log_page
-from pages.reports_page import render_reports_page
-from pages.misc_types_page import render_misc_types_page
-from pages.email_config_page import render_email_config_page
+from views.settings_page import render_settings_page
+from views.login_page import render_login_page
+from views.master_data_page import render_master_data_page
+from views.call_log_page import render_call_log_page
+from views.reports_page import render_reports_page
+from views.metadata_page import render_metadata_page
+from views.email_config_page import render_email_config_page
 from streamlit_option_menu import option_menu
+from utils.activation import render_activation_ui, verify_key
+from utils.logout import logout
 
 # Page configuration
 st.set_page_config(page_title="Call Log Management System", page_icon="📞", layout="wide")
 
 def is_streamlit_cloud() -> bool:
-    """
-    Detect if the app is running on Streamlit Cloud.
-    """
-    return (
-        os.getenv("STREAMLIT_SHARING_MODE") is not None or
-        os.getenv("HOSTNAME", "").endswith(".streamlit.app") or
-        os.getenv("IS_STREAMLIT_CLOUD") == "true"
+    """Detect if the app is running on Streamlit Cloud."""
+    if os.environ.get("STREAMLIT_RUNTIME_ENV") == "cloud":
+        return True
+    if os.environ.get("HOSTNAME") == "streamlit":
+        return True
+    return False
+
+def _set_active_repo(backend: str, mongo_uri: str | None = None, mongo_db: str | None = None, backup_path: str | None = None) -> None:
+    """Set the active repository in session state (MongoDB only)."""
+    st.session_state.active_backend = backend
+    # Only mongodb is supported
+    # 1. Create the repository
+    st.session_state.active_repo = get_repository(
+        backend_override="mongodb",
+        mongo_uri_override=mongo_uri,
+        mongo_db_override=mongo_db,
+        backup_path_override=backup_path,
     )
 
-
-def _set_active_repo(backend: str, mongo_uri: str | None = None, mongo_db: str | None = None) -> None:
-    """Set the active repository in session state."""
-    st.session_state.active_backend = backend
-    if backend == "mongodb":
-        st.session_state.active_repo = get_repository(
-            backend_override="mongodb",
-            mongo_uri_override=mongo_uri,
-            mongo_db_override=mongo_db,
+    # 2. IMPORTANT: Store these for the Logout Backup Logic
+    if mongo_uri and mongo_db and backup_path:
+        from utils.settings_store import MongoSettings, AppSettings
+        st.session_state.app_settings = AppSettings(
+            backend="mongodb",
+            mongodb=MongoSettings(uri=mongo_uri, database=mongo_db, backup_path=backup_path)
         )
-    else:
-        st.session_state.active_repo = get_repository(backend_override="mssql")
 
+    # AFTER the repo is set, check for existing license in the DB
+    if st.session_state.active_repo:
+        try:
+            act_record = st.session_state.active_repo.get_activation_record()
+            if act_record:
+                # Force types to string to handle Atlas 'int' types and prevent .strip() errors
+                email = str(act_record.get('email', ''))
+                mobile = str(act_record.get('mobile', ''))
+                key = str(act_record.get('key', ''))
+
+                if email and mobile and key and verify_key(email, mobile, key):
+                    st.session_state.app_activated = True
+        except Exception:
+            pass  # Silent failure during bootstrap is okay
 
 def _ensure_repo_or_stop() -> None:
     """Ensure repository is configured, otherwise stop execution."""
     if st.session_state.active_repo is None:
         st.warning("Please configure your database backend in **Settings** first.")
         st.stop()
-
 
 def initialize_session_state():
     """Initialize all session state variables."""
@@ -67,15 +88,12 @@ def initialize_session_state():
         st.session_state.authenticated = False
     if "current_user" not in st.session_state:
         st.session_state.current_user = None
+    if "app_activated" not in st.session_state:
+        st.session_state.app_activated = False
     if 'master_data_exists' not in st.session_state:
         st.session_state.master_data_exists = False
-    # Initialize dropdowns from DB when repo is available
     if 'dropdowns' not in st.session_state:
-        if st.session_state.active_repo is not None:
-            st.session_state.dropdowns = get_dropdown_values(st.session_state.active_repo)
-        else:
-            st.session_state.dropdowns = get_dropdown_values()
-
+        st.session_state.dropdowns = get_dropdown_values(st.session_state.active_repo) if st.session_state.active_repo else get_dropdown_values()
 
 def auto_bootstrap_connection():
     """Attempt to auto-connect using previously saved configuration."""
@@ -83,26 +101,10 @@ def auto_bootstrap_connection():
         st.session_state.bootstrap_attempted = True
         prev = load_bootstrap()
         if prev:
-            from utils.settings_store import test_mssql_connection, test_mongo_connection
-            if prev.backend == "mssql" and prev.mssql:
-                ok, _ = test_mssql_connection(prev.mssql)
-                if ok:
-                    _set_active_repo("mssql")
-                    st.session_state.active_backend = "mssql"
-                    # Restore authentication state if it exists
-                    if prev.authenticated_user:
-                        st.session_state.authenticated = True
-                        st.session_state.current_user = prev.authenticated_user
-            elif prev.backend == "mongodb" and prev.mongodb:
+            from utils.settings_store import test_mongo_connection
+            if prev.backend == "mongodb" and prev.mongodb:
                 ok, _ = test_mongo_connection(prev.mongodb)
-                if ok:
-                    _set_active_repo("mongodb", mongo_uri=prev.mongodb.uri, mongo_db=prev.mongodb.database)
-                    st.session_state.active_backend = "mongodb"
-                    # Restore authentication state if it exists
-                    if prev.authenticated_user:
-                        st.session_state.authenticated = True
-                        st.session_state.current_user = prev.authenticated_user
-
+                if ok: _set_active_repo("mongodb", mongo_uri=prev.mongodb.uri, mongo_db=prev.mongodb.database, backup_path=prev.mongodb.backup_path)
 
 def check_master_data_exists():
     """Check if master data exists in the database."""
@@ -111,190 +113,120 @@ def check_master_data_exists():
             st.session_state.master_data_checked = True
             try:
                 repo = st.session_state.active_repo
-                master_records = repo.master_list()
-                record_count = len(master_records)
-                st.session_state.master_data_exists = record_count > 0
-                
-                # Also refresh dropdowns from DB
+                st.session_state.master_data_exists = len(repo.master_list()) > 0
                 st.session_state.dropdowns = get_dropdown_values(repo)
-            except Exception as e:
+            except Exception:
                 st.session_state.master_data_exists = False
-
 
 def load_custom_css():
     """Load custom CSS styling."""
-    with open("style.css") as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    if os.path.exists("style.css"):
+        with open("style.css") as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
+def logout_app():            
+    """
+    Triggers the logout sequence. 
+    The actual clearing of data happens AFTER the backup in logout.py.
+    """
+    logout()
 
 def main():
     """Main application entry point."""
-    # Initialize session state
     initialize_session_state()
-    # --- Environment-based Auto-bootstrap ---
-    # Automatically loads saved database configuration ONLY if running locally.
-    # On Streamlit Cloud, this is skipped to prevent cross-session configuration
-    # and to respect the cloud's ephemeral/read-only filesystem.
     is_cloud = is_streamlit_cloud()
+    
+    # 1. Bootstrapping (Local only)
     if not is_cloud:
         auto_bootstrap_connection()
     
-    # Check if master data exists (no auto-import)
-    check_master_data_exists()
-    
-    # Load custom CSS
     load_custom_css()
     
-    st.markdown(
-      """
-      <div class='sub-header-text'>
-          <span class='side-icon'>📞</span> 
-          Call Logging Management System 
-          <span class='side-icon'>📞</span>
-      </div>
-      """, 
-      unsafe_allow_html=True
-  )
-    # Check for logged out state first - show logged out screen without navigation
-    if st.session_state.get("logged_out") is True: logout()
-    
-    # NOTE: Do not force the login page here. Allow the Settings page to be
-    # reachable even when a backend is configured but the current session is
-    # not authenticated. Authentication will be enforced when the user attempts
-    # to navigate to protected pages (Master Data, Types, Call Log, Reports).
-    
-    # Define your options list once so you can reference it easily
-    menu_options = ["Settings", "Email", "Master", "Types", "Call Log", "Reports", "About","Logout"]
+    st.markdown("<div class='sub-header-text'><span class='side-icon'>📞</span> Call Log Management System <span class='side-icon'>📞</span></div>", unsafe_allow_html=True)
 
-    # Determine default page based on setup status
+    # --- NEW LOGIC FLOW ---
+    
+    # STEP 1: FORCE SETTINGS IF NOT CONNECTED
+    if st.session_state.active_repo is None:
+        st.info("👋 Welcome! Please connect to your MongoDB database in **Settings** to begin.")
+        _, center_col, _ = st.columns([1, 6, 1])
+        with center_col:
+            with st.container(border=True):
+                render_settings_page(is_cloud, set_active_repo_func=_set_active_repo, save_settings_func=save_settings)
+        return # HALT: Cannot proceed without a database
+
+    # STEP 2: SILENT CLOUD ACTIVATION SYNC
+    # If we have a repo but not activated, try to fetch from DB
+    if not st.session_state.app_activated:
+        try:
+            record = st.session_state.active_repo.get_activation_record()
+            if record:
+                # Convert everything to string to handle integer fields from Atlas
+                email = str(record.get('email', ''))
+                mobile = str(record.get('mobile', ''))
+                hwid = get_hardware_id()
+                key = str(record.get('key', ''))
+                
+                if email and mobile and hwid and key and verify_key(email, mobile, hwid, key):
+                    st.session_state.app_activated = True
+                    st.rerun() # Refresh to clear any activation UI
+        except Exception:
+            pass
+
+    # STEP 3: MANUAL ACTIVATION GATE
+    if not st.session_state.app_activated:
+        _, center_col, _ = st.columns([1, 2, 1])
+        with center_col:
+            render_activation_ui(st.session_state.active_repo)
+        return # HALT: App must be activated to see the menu
+
+    # STEP 4: NAVIGATION & APP CONTENT
+    check_master_data_exists()
+    # if st.session_state.get("logged_out") is True: logout()
+
+    menu_options = ["Settings", "Email", "Master", "Types", "Call Log", "Reports", "About", "Logout"]
+    
+    # Handle Page Index
     if 'current_page_index' not in st.session_state:
-        # CASE 1: Connected and Logged In
-        if st.session_state.active_repo is not None and st.session_state.authenticated:
-            if st.session_state.master_data_exists:
-                st.session_state.current_page_index = 4  # Call Log Entry
-            else:
-                st.session_state.current_page_index = 2  # Master Data Management
-        
-        # CASE 2: Connected but NOT Logged In (This is your current issue!)
-        elif st.session_state.active_repo is not None and not st.session_state.authenticated:
-            # Send them to Call Log (which will trigger the Login screen automatically)
-            st.session_state.current_page_index = 4 
-            
-        # CASE 3: Fresh start, no connection
+        if st.session_state.authenticated:
+            st.session_state.current_page_index = 4 if st.session_state.master_data_exists else 2
         else:
-            st.session_state.current_page_index = 0  # Settings
+            st.session_state.current_page_index = 4 # Defaults to Login (via Call Log)
             
-    current_index = st.session_state.current_page_index
     nav_l, nav_c, nav_r = st.columns([1, 4, 1]) 
     with nav_c:
-      page = option_menu(
-          menu_title=None,
+        page = option_menu(
+            menu_title=None,
             options=menu_options,
             icons=["gear", "envelope", "database", "tags", "telephone-inbound", "graph-up", 'info-circle', "box-arrow-right"],
-            default_index=current_index,
+            default_index=st.session_state.current_page_index,
             orientation='horizontal',
-            styles={
-            "container": {"background-color": "transparent", "padding": "0", "max-width": "100%", "margin": "-1px", "height": "40px"},
-            "icon": {"color": "orange", "font-size": "16px"},
-            "nav-link": {
-                "font-size": "14px", 
-                "color": "white", 
-                "padding": "5px 15px",
-                "margin": "0px 2px",
-                "--hover-color": "#cf5e2eb9"  # OrangeRed hex code
-            },
-            "nav-link-selected": {
-                "background-color": "#2e7bcf" # A slightly darker red for the active state
-            },
-          }
+            styles={"nav-link": {"font-size": "14px", "padding": "5px 15px"}, "nav-link-selected": {"background-color": "#2e7bcf"}}
         )
-    # Update current page index when navigation changes
     st.session_state.current_page_index = menu_options.index(page)
 
-    # Handle Logout immediately
-    if page == "Logout":
-        # Clear authentication from bootstrap config
-        from utils.bootstrap_config import load_bootstrap, save_bootstrap
-        bootstrap_config = load_bootstrap()
-        if bootstrap_config:
-            bootstrap_config.authenticated_user = None
-            save_bootstrap(bootstrap_config)
-        
-        # Close DB connections for this repo if supported
-        repo_obj = st.session_state.active_repo
-        if hasattr(repo_obj, "close") and callable(getattr(repo_obj, "close")):
-            try:
-                repo_obj.close()
-            except Exception:
-                # Best-effort; ignore errors on close
-                pass
-        st.session_state.active_backend = None
-        st.session_state.active_repo = None
-        st.session_state.authenticated = False
-        st.session_state.current_user = None
-        st.session_state.bootstrap_attempted = True  # avoid immediate auto-bootstrapping in same session
-        st.session_state.logged_out = True
-        # Remove UI widget values so they don't reappear after logout/refresh
-        for k in [
-            "login_username", "login_password",
-            "reg_username", "reg_password", "reg_password_confirm",
-            "reset_username", "reset_new_password", "reset_confirm_password",
-        ]:
-            if k in st.session_state:
-                del st.session_state[k]
+    # Logout Logic
+    if page == "Logout": logout_app()
 
-        # Remove page index if present
-        if "current_page_index" in st.session_state:
-            del st.session_state.current_page_index  # Remove page index so it doesn't interfere
-        st.rerun()
-    
     # Footer
     current_date = datetime.now().strftime("%B %d, %Y")
     st.markdown(f'<div class="fixed-footer"><b>© 2026 Call Log Management System | Version 1.0.0 | Date: {current_date}</b></div>', unsafe_allow_html=True)
     
-    # We wrap the container in centered columns to position it in the middle of the 'wide' layout
     _, center_col, _ = st.columns([1, 6, 1])
     with center_col:
-        with st.container(border=True, height=600, horizontal_alignment="left"):
-          # Route to appropriate page
-          # If a backend is configured but the session is not authenticated,
-          # allow access to Settings but require login for other pages.
-          if st.session_state.active_repo is not None and not st.session_state.authenticated:
-              if page != "Settings":
-                    render_login_page(st.session_state.active_repo)
-                    st.stop()
-          
-          if page == "Settings":
-              render_settings_page(
-                  is_cloud,
-                  set_active_repo_func=_set_active_repo,
-                  save_settings_func=save_settings
-              )
-              # st.stop()
-
-          if page == "About":
-            render_about_page()    
-
-          elif page == "Email":
-            _ensure_repo_or_stop()
-            render_email_config_page()    
-
-          elif page == "Master":
-              _ensure_repo_or_stop()
-              render_master_data_page(st.session_state.active_repo, st.session_state.dropdowns)
-          
-          elif page == "Types":
-              _ensure_repo_or_stop()
-              render_misc_types_page(st.session_state.active_repo, st.session_state.dropdowns)
-          
-          elif page == "Call Log":
-              _ensure_repo_or_stop()
-              render_call_log_page(st.session_state.active_repo, st.session_state.dropdowns)
-          
-          elif page == "Reports":
-              _ensure_repo_or_stop()
-              render_reports_page(st.session_state.active_repo)
-
+        with st.container(border=True, height=600):
+            # Enforce Authentication for everything except About/Settings
+            if not st.session_state.authenticated and page not in ["Settings", "About"]:
+                render_login_page(st.session_state.active_repo)
+            else:
+                # Routing
+                if page == "Settings": render_settings_page(is_cloud, _set_active_repo, save_settings)
+                elif page == "About": render_about_page()    
+                elif page == "Email": render_email_config_page()    
+                elif page == "Master": render_master_data_page(st.session_state.active_repo, st.session_state.dropdowns)
+                elif page == "Types": render_metadata_page(st.session_state.active_repo, st.session_state.dropdowns)
+                elif page == "Call Log": render_call_log_page(st.session_state.active_repo, st.session_state.dropdowns)
+                elif page == "Reports": render_reports_page(st.session_state.active_repo)
 
 if __name__ == "__main__":
     main()

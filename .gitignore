@@ -8,6 +8,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+bin/
 .env
 .venv
 venv/
@@ -18,3 +19,5 @@ ENV/
 *.json
 *.xlsx
 .spec
+.streamlit/
+tool/
