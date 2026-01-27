@@ -3,8 +3,13 @@ Authentication Module for Call Log Application
 Handles user registration, login, and password reset
 """
 import hashlib
-import secrets
+import streamlit as st
 from typing import Optional, Tuple
+from utils.data_models import User, get_now
+
+# Access the username from the stored dictionary
+user_info = st.session_state.get('current_user', {})
+username = user_info.get('username', 'System')
 
 
 def hash_password(password: str) -> str:
@@ -32,11 +37,14 @@ def register_user(repo, username: str, password: str) -> Tuple[bool, str]:
         hashed_pw = hash_password(password)
         
         # Create user record
-        user_id = repo.user_create({
-            "username": username,
-            "password": hashed_pw
-        })
+        new_user = User(
+            username=username,
+            password=hashed_pw,
+            created_at=get_now()
+        )
         
+        user_id = repo.user_create(new_user)
+
         if user_id:
             return True, "Registration successful! You can now log in."
         else:
@@ -57,7 +65,7 @@ def login_user(repo, username: str, password: str) -> Tuple[bool, str, Optional[
             return False, "Invalid username or password", None
         
         # Verify password
-        if verify_password(password, user.get("password", "")):
+        if verify_password(password, user.password):
             return True, "Login successful!", user
         else:
             return False, "Invalid username or password", None
@@ -71,19 +79,31 @@ def reset_password(repo, username: str, new_password: str) -> Tuple[bool, str]:
     Returns: (success: bool, message: str)
     """
     try:
-        # Check if user exists
+        # 1. Check if user exists first to provide a clear error message
         user = repo.user_get_by_username(username)
         if not user:
             return False, "Username not found"
         
-        # Hash the new password
+        # 2. Hash the new password
         hashed_pw = hash_password(new_password)
         
-        # Update user password
-        user_id = user.get("id")
-        repo.user_update(user_id, {"password": hashed_pw})
+        # 3. Perform the update
+        # update user record
+        upd_user = User(
+            username,
+            password=hashed_pw,
+            updated_by=username,
+            updated_at=get_now()
+        )
+        success = repo.user_update(upd_user)
         
-        return True, "Password reset successful! You can now log in with your new password."
+        if success:
+            return True, "Password reset successful! You can now log in with your new password."
+        else:
+            # This handles cases where the new password is identical to the old one
+            # or the document was locked.
+            return False, "Password update failed. Please try a different password."
+            
     except Exception as e:
         return False, f"Password reset error: {str(e)}"
 

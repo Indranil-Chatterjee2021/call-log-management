@@ -7,146 +7,72 @@ from typing import Any, Dict, Literal, Optional, Tuple
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import pyodbc  # noqa: F401
-    from pymongo import MongoClient  # noqa: F401
+from pymongo import MongoClient
+
+# import app  # noqa: F401
 
 
-Backend = Literal["mssql", "mongodb"]
-
-
-@dataclass
-class MSSQLSettings:
-    server: str
-    database: str
-    username: str
-    password: str
-    driver: str = "{ODBC Driver 17 for SQL Server}"
+Backend = Literal["mongodb"]
 
 
 @dataclass
 class MongoSettings:
     uri: str
     database: str
+    backup_path: str
+
+
+@dataclass
+class ActivationInfo:
+    name: str
+    email: str
+    mobile: str
+    key: str
 
 
 @dataclass
 class AppSettings:
     backend: Backend
-    mssql: Optional[MSSQLSettings] = None
-    mongodb: Optional[MongoSettings] = None
+    mongodb: MongoSettings
+    createdAt: Optional[datetime] = None
+    activation: Optional[ActivationInfo] = None
     authenticated_user: Optional[str] = None  # Store last authenticated username
 
 
-def _mssql_conn_str(s: MSSQLSettings) -> str:
-    return (
-        f"DRIVER={s.driver};"
-        f"SERVER={s.server};"
-        f"DATABASE={s.database};"
-        f"UID={s.username};"
-        f"PWD={s.password};"
-        "TrustServerCertificate=yes;"
-    )
-
-
-def test_mssql_connection(s: MSSQLSettings) -> Tuple[bool, str]:
+def test_mongo_connection(mongoSettings: MongoSettings) -> Tuple[bool, str]:
     try:
-        import pyodbc  # type: ignore
-
-        conn = pyodbc.connect(_mssql_conn_str(s), timeout=5)
-        cur = conn.cursor()
-        cur.execute("SELECT 1")
-        cur.fetchone()
-        cur.close()
-        conn.close()
-        return True, "MSSQL connection OK."
-    except Exception as e:
-        return False, f"MSSQL connection failed: {e}"
-
-
-def test_mongo_connection(s: MongoSettings) -> Tuple[bool, str]:
-    try:
-        from pymongo import MongoClient  # type: ignore
-
-        client = MongoClient(s.uri, serverSelectionTimeoutMS=5000)
+        uri, database = (mongoSettings.uri, mongoSettings.database)
+        client = MongoClient(uri, serverSelectionTimeoutMS=5000)
         client.admin.command("ping")
         # ensure db exists
-        _ = client[s.database].list_collection_names()
+        _ = client[database].list_collection_names()
         client.close()
         return True, "MongoDB connection OK."
     except Exception as e:
         return False, f"MongoDB connection failed: {e}"
 
 
-def save_settings_to_mssql(app: AppSettings) -> None:
-    if not app.mssql:
-        raise ValueError("Missing MSSQL settings")
-    s = app.mssql
-    import pyodbc  # type: ignore
-
-    conn = pyodbc.connect(_mssql_conn_str(s))
-    cur = conn.cursor()
-    try:
-        cur.execute(
-            """
-            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[AppConfig]') AND type in (N'U'))
-            CREATE TABLE [dbo].[AppConfig] (
-                [ConfigKey] NVARCHAR(100) NOT NULL PRIMARY KEY,
-                [ConfigJson] NVARCHAR(MAX) NOT NULL,
-                [UpdatedAt] DATETIME NOT NULL DEFAULT GETDATE()
-            )
-            """
-        )
-        payload = json.dumps(asdict(app), default=str)
-        cur.execute(
-            """
-            MERGE [dbo].[AppConfig] AS target
-            USING (SELECT ? AS ConfigKey, ? AS ConfigJson) AS source
-            ON (target.ConfigKey = source.ConfigKey)
-            WHEN MATCHED THEN
-              UPDATE SET ConfigJson = source.ConfigJson, UpdatedAt = GETDATE()
-            WHEN NOT MATCHED THEN
-              INSERT (ConfigKey, ConfigJson) VALUES (source.ConfigKey, source.ConfigJson);
-            """,
-            "active",
-            payload,
-        )
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        cur.close()
-        conn.close()
-
-
-def save_settings_to_mongo(app: AppSettings) -> None:
-    if not app.mongodb:
+def save_settings_to_mongo(appSettings: AppSettings) -> None:
+    if not appSettings.mongodb:
         raise ValueError("Missing MongoDB settings")
-    s = app.mongodb
-    from pymongo import MongoClient  # type: ignore
-
-    client = MongoClient(s.uri)
+    uri, database = (appSettings.mongodb.uri, appSettings.mongodb.database)
+    client = MongoClient(uri)
     try:
-        db = client[s.database]
+        db = client[database]
         col = db["appConfig"]
-        payload: Dict[str, Any] = asdict(app)
-        payload["UpdatedAt"] = datetime.utcnow()
-        col.update_one({"_id": "active"}, {"$set": payload}, upsert=True)
+
+        # This converts the dataclass to a dict, including the nested activation field
+        appSettings.createdAt = datetime.utcnow()
+        appConfig = asdict(appSettings)
+        print(f"appSettings: {appConfig}")
+        # We use $set so we don't accidentally wipe existing fields like 'createdAt'
+        col.update_one({"_id": "active"}, {"$set": appConfig}, upsert=True)
     finally:
         client.close()
 
 
-def save_settings(app: AppSettings) -> None:
-    """
-    Store settings inside the chosen backend itself:
-    - MSSQL: dbo.AppConfig (key 'active')
-    - MongoDB: appConfig collection (_id 'active')
-    """
-    if app.backend == "mssql":
-        save_settings_to_mssql(app)
-    elif app.backend == "mongodb":
-        save_settings_to_mongo(app)
+def save_settings(appSettings: AppSettings) -> None:
+    if appSettings.backend == "mongodb":
+        save_settings_to_mongo(appSettings)
     else:
-        raise ValueError(f"Unsupported backend: {app.backend}")
-
+        raise ValueError(f"Unsupported backend: {appSettings.backend}")

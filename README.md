@@ -1,10 +1,10 @@
 # Call Log Management System
 
-A comprehensive Streamlit-based web application for managing call logs with user authentication, master data management, and support for both MSSQL and MongoDB databases.
+A comprehensive Streamlit-based web application for managing call logs with user authentication, master data management, and MongoDB as the supported database backend.
 
 ## Overview
 
-This application provides a complete solution for tracking and managing customer call logs with auto-fill capabilities from master data. It supports both local deployment (with MSSQL or MongoDB) and cloud deployment (MongoDB only) on Streamlit Cloud.
+This application provides a complete solution for tracking and managing customer call logs with auto-fill capabilities from master data. It supports local deployment and cloud deployment (MongoDB) on Streamlit Cloud.
 
 ## Features
 
@@ -41,7 +41,7 @@ This application provides a complete solution for tracking and managing customer
    - **Data Preview**: View filtered data before export
 
 ### 6. **Settings**
-   - **Database Backend Selection**: Choose between MSSQL (local only) or MongoDB (local/cloud)
+   - **Database Backend Selection**: MongoDB (local/cloud)
    - **Connection Testing**: Test database connection before activation
    - **Auto-Bootstrap**: Automatically reconnect on app restart
    - **Email Configuration**: Configure SMTP settings for email reports
@@ -50,13 +50,13 @@ This application provides a complete solution for tracking and managing customer
 
 ### Option 1: Local Deployment
 - Create a standalone executable file
-- Supports both **MSSQL** and **MongoDB**
+- Uses **MongoDB**
 - No installation required for end users
 - See "Creating Executable" section below
 
 ### Option 2: Cloud Deployment (Streamlit Cloud)
 - Deploy to Streamlit Cloud for worldwide access
-- **MongoDB only** (MSSQL disabled on cloud)
+- **MongoDB only**
 - Free hosting with Streamlit Community Cloud
 - See "Deploying to Streamlit Cloud" section below
 
@@ -64,9 +64,7 @@ This application provides a complete solution for tracking and managing customer
 
 ### For Local Use:
 - **Python 3.8 or higher**
-- One of the following databases:
-  - **MSSQL Server** (SQL Server or SQL Server Express) + ODBC Driver 17/18
-  - **MongoDB** (local installation or MongoDB Atlas)
+- **MongoDB** (local installation or MongoDB Atlas)
 
 ### For Streamlit Cloud:
 - GitHub account
@@ -95,16 +93,9 @@ pip install -r requirements.txt
 Create a `.env` file in the project root for default connection settings:
 
 ```env
-DB_BACKEND=mssql   # or: mongodb
+DB_BACKEND=mongodb
 
-# MSSQL Settings (used only when DB_BACKEND=mssql)
-DB_SERVER=your_server_name
-DB_NAME=CALLLOG
-DB_USER=your_username
-DB_PASSWORD=your_password
-DB_DRIVER={ODBC Driver 17 for SQL Server}
-
-# MongoDB Settings (used only when DB_BACKEND=mongodb)
+# MongoDB Settings
 MONGO_URI=mongodb://localhost:27017
 MONGO_DB=call-logs
 ```
@@ -121,16 +112,12 @@ The application will open at `http://localhost:8501`
 
 ### 2. Configure Database Backend
 1. Navigate to **Settings** page
-2. Select your database backend:
-   - **MSSQL** (for local deployment only)
-   - **MongoDB** (for local or cloud deployment)
-3. Enter connection details
-4. Click **Test Connection** to verify
-5. Click **Save & Activate** to initialize the database
+2. Select the MongoDB backend and enter connection details
+3. Click **Test Connection** to verify
+4. Click **Save & Activate** to initialize the database
 
 ### 3. Initialize Database
-- **MSSQL**: Tables are automatically created when you click "Save & Activate"
-- **MongoDB**: Collections are created automatically when first used
+- **MongoDB**: Collections and indexes are created automatically when first used
 
 ### 4. Register First User
 1. After database activation, the app will show the **Register** tab
@@ -221,7 +208,7 @@ On subsequent startups, the app automatically:
 - Tests the database connection
 - Activates the backend if connection is successful
 
-**Security Note**: This file may contain credentials (MSSQL password / MongoDB URI). It is included in `.gitignore` and should be kept private.
+**Security Note**: This file may contain credentials (MongoDB URI). It is included in `.gitignore` and should be kept private.
 
 ## Database Schema
 
@@ -285,39 +272,21 @@ On subsequent startups, the app automatically:
 **Indexes**: Username (unique index)
 
 #### 4. **MiscData** (Dropdown Configuration)
-**MSSQL Structure:**
+This document stores dropdown configuration values used throughout the application.
+
 | Field | Type | Description |
 |-------|------|-------------|
-| ConfigId | INT | Primary Key (always 1) |
-| Projects | NVARCHAR(MAX) | JSON array of projects |
-| TownTypes | NVARCHAR(MAX) | JSON array of town types |
-| Requesters | NVARCHAR(MAX) | JSON array of requesters |
-| Designations | NVARCHAR(MAX) | JSON array of designations |
-| Modules | NVARCHAR(MAX) | JSON array of modules |
-| Issues | NVARCHAR(MAX) | JSON array of issues |
-| Solutions | NVARCHAR(MAX) | JSON array of solutions |
-| SolvedOn | NVARCHAR(MAX) | JSON array of solved on values |
-| CallOn | NVARCHAR(MAX) | JSON array of call on values |
-| Types | NVARCHAR(MAX) | JSON array of types |
-| CreatedDate | DATETIME2 | Creation timestamp |
-| UpdatedDate | DATETIME2 | Last update timestamp |
-
-**MongoDB Structure:**
-```json
-{
-  "_id": "dropdown_values",
-  "projects": ["Project A", "Project B", ...],
-  "town_types": ["Urban", "Rural", ...],
-  "requesters": ["John Doe", "Jane Smith", ...],
-  "designations": ["Manager", "Director", ...],
-  "modules": ["Accounts", "Reports", ...],
-  "issues": ["Login Issue", "Data Error", ...],
-  "solutions": ["Reset Password", "Fixed Query", ...],
-  "solved_on": ["Phone", "Email", ...],
-  "call_on": ["Mobile", "WhatsApp", ...],
-  "types": ["Support", "Query", ...]
-}
-```
+| _id | String | Document id (e.g. "dropdown_values") |
+| projects | Array[String] | List of projects |
+| town_types | Array[String] | List of town types |
+| requesters | Array[String] | List of requesters |
+| designations | Array[String] | List of designations |
+| modules | Array[String] | List of modules |
+| issues | Array[String] | List of issues |
+| solutions | Array[String] | List of solutions |
+| solved_on | Array[String] | List of solved on values |
+| call_on | Array[String] | List of call on values |
+| types | Array[String] | List of call types |
 
 #### 5. **EmailConfig** (Email Settings)
 | Field | Type | Description |
@@ -333,7 +302,6 @@ On subsequent startups, the app automatically:
 #### 6. **AppConfig** (Application Configuration)
 Stores backend configuration and settings.
 
-**MSSQL**: Table with ConfigKey/ConfigValue pairs  
 **MongoDB**: Collection with document `_id: "active"`
 
 ## Usage Guide
@@ -460,7 +428,7 @@ dist\app\app.exe
 
 The application will open in the default browser automatically.
 
-**Note**: The executable includes support for both MSSQL and MongoDB backends.
+**Note**: The executable uses MongoDB as the supported backend.
 
 ## Deploying to Streamlit Cloud
 
@@ -548,7 +516,7 @@ git push -u origin main
 
 ### Important Notes
 
-- **MSSQL is automatically disabled** on Streamlit Cloud (cloud environment detection)
+- MongoDB is the supported backend on Streamlit Cloud
 - Each user should use their **own MongoDB Atlas cluster** for data isolation
 - Free MongoDB Atlas tier (M0) is sufficient for most use cases
 - Connection URI is **not persisted** between sessions (for security)
@@ -599,12 +567,11 @@ git push -u origin main
 ├─────────────────────────────────────────────────┤
 │        Repository Layer (storage/)              │
 │  - Base Protocol (base.py)                      │
-│  - MSSQL Repository (mssql_repo.py)             │
 │  - MongoDB Repository (mongo_repo.py)           │
 ├─────────────────────────────────────────────────┤
 │              Database Layer                     │
-│  MSSQL Server         │    MongoDB Atlas        │
-│  (Local Only)         │    (Local/Cloud)        │
+│  MongoDB Atlas        │                        │
+│  (Local/Cloud)        │                        │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -653,13 +620,10 @@ callLogApp/
 ├── storage/                    # Data access layer
 │   ├── __init__.py            # Repository factory
 │   ├── base.py                # Repository protocol (interface)
-│   ├── mssql_repo.py          # MSSQL implementation
 │   ├── mongo_repo.py          # MongoDB implementation
 │   └── factory.py             # Repository creation logic
 │
 ├── auth.py                     # Authentication utilities
-├── db_config.py               # Database connection configuration
-├── db_init_mssql.py           # MSSQL table creation
 ├── init_database.py           # Database initialization
 ├── dropdown_data.py           # Dropdown data retrieval (DB-based)
 ├── settings_store.py          # Settings management
@@ -687,8 +651,8 @@ All dropdown values are:
 
 ### 3. **Database Abstraction**
 The repository pattern allows:
-- Seamless switching between MSSQL and MongoDB
-- Same codebase for both backends
+- Abstracted database access (MongoDB)
+- Same codebase for data access
 - Easy testing and maintenance
 - Future backend additions possible
 
@@ -731,13 +695,6 @@ Create `.env` file for default settings:
 # Default backend (optional)
 DB_BACKEND=mongodb
 
-# MSSQL Settings (optional)
-DB_SERVER=localhost
-DB_NAME=CALLLOG
-DB_USER=sa
-DB_PASSWORD=your_password
-DB_DRIVER={ODBC Driver 17 for SQL Server}
-
 # MongoDB Settings (optional)
 MONGO_URI=mongodb://localhost:27017
 MONGO_DB=call-logs
@@ -757,15 +714,6 @@ MONGO_DB=call-logs
 
 ## Backup & Restore
 
-### MSSQL Backup
-```sql
--- Create backup
-BACKUP DATABASE CALLLOG TO DISK = 'C:\Backups\CALLLOG.bak'
-
--- Restore backup
-RESTORE DATABASE CALLLOG FROM DISK = 'C:\Backups\CALLLOG.bak'
-```
-
 ### MongoDB Backup
 ```bash
 # Export database
@@ -783,16 +731,6 @@ mongorestore --uri="mongodb://localhost:27017/call-logs" ./backup/call-logs
 ## Troubleshooting
 
 ### Database Connection Issues
-
-**MSSQL Connection Failed:**
-```
-✓ Check SQL Server is running: services.msc → SQL Server
-✓ Verify server name: .\SQLEXPRESS or localhost\SQLEXPRESS
-✓ Confirm ODBC driver installed: odbcad32.exe
-✓ Test with SQL Server Management Studio
-✓ Check firewall settings
-✓ Verify user permissions: SQL Server Management Studio → Security → Logins
-```
 
 **MongoDB Connection Failed:**
 ```
@@ -840,10 +778,10 @@ mongorestore --uri="mongodb://localhost:27017/call-logs" ./backup/call-logs
 ## FAQ
 
 **Q: Can I use this offline?**  
-A: Yes! Use local MSSQL or local MongoDB. No internet required.
+A: Yes! Use local MongoDB. No internet required.
 
 **Q: How many users can access simultaneously?**  
-A: Database dependent. MSSQL Express supports up to 32,767 connections. MongoDB has no hard limit.
+A: Database dependent. MongoDB has no hard limit.
 
 **Q: Can I customize dropdown values after initial setup?**  
 A: Yes! Use the Dropdown Config page to add new values anytime.
@@ -876,7 +814,7 @@ A: Passwords are hashed. For database encryption, use database-level encryption 
 - **CPU**: Quad-core processor
 - **RAM**: 8 GB
 - **Storage**: 2 GB free space
-- **Database**: Dedicated server for MSSQL or MongoDB cluster
+- **Database**: Dedicated server for MongoDB cluster
 
 ## Support & Contribution
 
@@ -890,7 +828,7 @@ A: Passwords are hashed. For database encryption, use database-level encryption 
 When reporting issues, include:
 - Python version: `python --version`
 - Operating system
-- Database type (MSSQL/MongoDB)
+- Database type (MongoDB)
 - Error message (full traceback)
 - Steps to reproduce
 
@@ -915,7 +853,7 @@ Potential improvements:
 - ✅ Reports with date filtering
 - ✅ Excel export functionality
 - ✅ Email integration
-- ✅ MSSQL and MongoDB support
+- ✅ MongoDB support
 - ✅ Streamlit Cloud deployment
 - ✅ Standalone executable creation
 - ✅ Auto-bootstrap reconnection
@@ -925,7 +863,7 @@ Potential improvements:
 **Developer**: Indranil Chatterjee  
 **Version**: 1.0.0  
 **Last Updated**: January 15, 2026  
-**Built With**: Streamlit, Python, MSSQL, MongoDB
+**Built With**: Streamlit, Python, MongoDB
 
 ## License
 

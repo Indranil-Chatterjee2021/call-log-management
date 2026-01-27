@@ -3,104 +3,17 @@ Initialize database and create tables
 """
 import pandas as pd
 import os
-
+import streamlit as st
 from dotenv import load_dotenv
 
-from utils.db_config import get_db_connection
 from storage import get_repository
 
 def create_tables():
-    """Create Master and CallLogEntries tables"""
+    """Create Master, CallLogEntries, MiscData, and AppConfig tables"""
     load_dotenv()
-    backend = (os.getenv("DB_BACKEND") or "mssql").strip().lower()
-    if backend in {"mongodb", "mongo"}:
-        # MongoDB is schema-less; indexes are created in repository init.
-        get_repository()
-        print("MongoDB backend selected: collections/indexes ready (no SQL tables to create).")
-        return
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        # Create Master table
-        cursor.execute("""
-            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Master]') AND type in (N'U'))
-            CREATE TABLE [dbo].[Master] (
-                [SrNo] INT IDENTITY(1,1) PRIMARY KEY,
-                [MobileNo] NVARCHAR(20) NOT NULL UNIQUE,
-                [Project] NVARCHAR(100),
-                [TownType] NVARCHAR(50),
-                [Requester] NVARCHAR(100),
-                [RDCode] NVARCHAR(50),
-                [RDName] NVARCHAR(200),
-                [Town] NVARCHAR(100),
-                [State] NVARCHAR(50),
-                [Designation] NVARCHAR(100),
-                [Name] NVARCHAR(200),
-                [GSTNo] NVARCHAR(50),
-                [EmailID] NVARCHAR(200),
-                [CreatedDate] DATETIME DEFAULT GETDATE(),
-                [UpdatedDate] DATETIME DEFAULT GETDATE()
-            )
-        """)
-        
-        # Create CallLogEntries table
-        cursor.execute("""
-            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CallLogEntries]') AND type in (N'U'))
-            CREATE TABLE [dbo].[CallLogEntries] (
-                [SrNo] INT IDENTITY(1,1) PRIMARY KEY,
-                [Date] DATETIME DEFAULT GETDATE(),
-                [MobileNo] NVARCHAR(20) NOT NULL,
-                [Project] NVARCHAR(100),
-                [Town] NVARCHAR(100),
-                [Requester] NVARCHAR(100),
-                [RDCode] NVARCHAR(50),
-                [RDName] NVARCHAR(200),
-                [State] NVARCHAR(50),
-                [Designation] NVARCHAR(100),
-                [Name] NVARCHAR(200),
-                [Module] NVARCHAR(100),
-                [Issue] NVARCHAR(500),
-                [Solution] NVARCHAR(500),
-                [SolvedOn] NVARCHAR(100),
-                [CallOn] NVARCHAR(100),
-                [Type] NVARCHAR(100),
-                [CreatedDate] DATETIME DEFAULT GETDATE(),
-                [UpdatedDate] DATETIME DEFAULT GETDATE()
-            )
-        """)
-        
-        # Create MiscData table for dropdown values
-        cursor.execute("""
-            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MiscData]') AND type in (N'U'))
-            CREATE TABLE [dbo].[MiscData] (
-                [ConfigId] INT PRIMARY KEY,
-                [Projects] NVARCHAR(MAX),
-                [TownTypes] NVARCHAR(MAX),
-                [Requesters] NVARCHAR(MAX),
-                [Designations] NVARCHAR(MAX),
-                [Modules] NVARCHAR(MAX),
-                [Issues] NVARCHAR(MAX),
-                [Solutions] NVARCHAR(MAX),
-                [SolvedOn] NVARCHAR(MAX),
-                [CallOn] NVARCHAR(MAX),
-                [Types] NVARCHAR(MAX),
-                [CreatedDate] DATETIME DEFAULT GETDATE(),
-                [UpdatedDate] DATETIME DEFAULT GETDATE()
-            )
-        """)
-        
-        conn.commit()
-        print("Tables created successfully!")
-        
-    except Exception as e:
-        print(f"Error creating tables: {e}")
-        conn.rollback()
-        raise
-    finally:
-        cursor.close()
-        conn.close()
+    # Ensure MongoDB collections/indexes via the MongoRepository initialization
+    get_repository()
+    return True, "MongoDB collections/indexes verified."
 
 def import_master_data(repo=None):
     """Import data from Master sheet into database

@@ -2,8 +2,11 @@
 Email Configuration Page Module
 Handles SMTP settings for report distribution.
 """
+from time import sleep
 import streamlit as st
 import smtplib
+
+from utils.data_models import EmailConfig, get_now
 
 def render_email_config_page():
     st.subheader("📧 Email Configuration")
@@ -15,6 +18,10 @@ def render_email_config_page():
         st.stop()
 
     repo = st.session_state.active_repo
+
+    # Access the username from the stored dictionary
+    user_info = st.session_state.get('current_user', {})
+    username = user_info.get('username', 'System')
     
     # Load existing config from the active repository
     existing_config = repo.email_config_get()
@@ -24,16 +31,16 @@ def render_email_config_page():
         with col1:
             smtp_server = st.text_input(
                 "SMTP Server", 
-                value=existing_config.get("smtp_server", "smtp.gmail.com") if existing_config else "smtp.gmail.com"
+                value=existing_config.smtp_server if existing_config else "smtp.gmail.com"
             )
             smtp_port = st.number_input(
                 "SMTP Port", 
-                value=existing_config.get("smtp_port", 587) if existing_config else 587
+                value=existing_config.smtp_port if existing_config else 587
             )
         with col2:
             smtp_user = st.text_input(
                 "Email Address", 
-                value=existing_config.get("smtp_user", "") if existing_config else ""
+                value=existing_config.smtp_user if existing_config else ""
             )
             smtp_password = st.text_input(
                 "Email Password (App Password)", 
@@ -51,27 +58,35 @@ def render_email_config_page():
         with c3:
             delete_btn = st.form_submit_button("🗑️ Remove Config")
 
+        # This cleans up hidden spaces like \xa0
+        clean_email = smtp_user.replace('\xa0', ' ').strip()
+        clean_password = smtp_password.replace('\xa0', ' ').strip()    
+
         if test_btn:
             try:
                 with smtplib.SMTP(smtp_server, smtp_port) as server:
                     server.starttls()
-                    server.login(smtp_user, smtp_password)
+                    server.login(clean_email, clean_password)
                 st.success("✅ Connection Successful!")
             except Exception as e:
                 st.error(f"❌ Failed: {str(e)}")
 
         if save_btn:
-            config = {
-                "smtp_server": smtp_server,
-                "smtp_port": int(smtp_port),
-                "smtp_user": smtp_user,
-                "smtp_password": smtp_password if smtp_password else (existing_config.get("smtp_password", "") if existing_config else ""),
-            }
+            config = EmailConfig(
+                smtp_server=smtp_server,
+                smtp_port=int(smtp_port),
+                smtp_user=clean_email,
+                smtp_password=clean_password if clean_password else (existing_config.smtp_password if existing_config else ""),
+                created_by=username,
+                created_at=get_now()
+            )
             repo.email_config_save(config)
-            st.success("✅ Settings Saved!")
+            st.success("✅ Email configuration saved!", icon="🚀")
+            sleep(2)
             st.rerun()
 
         if delete_btn:
             repo.email_config_delete()
-            st.success("🗑️ Configuration Deleted")
+            st.success("🗑️ Email configuration was deleted successfully!")
+            sleep(2)
             st.rerun()

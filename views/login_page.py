@@ -3,8 +3,9 @@ Login/Authentication Page Module
 Handles user registration, login, and password reset
 """
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timezone
 from utils.auth import register_user, login_user, reset_password, check_users_exist
+from utils.bootstrap_config import load_bootstrap, save_bootstrap
 
 form_width = 1200
 
@@ -47,7 +48,7 @@ def render_login_page(repo):
         _render_reset_tab(repo)
     
     # Footer
-    current_date = datetime.now().strftime("%B %d, %Y")
+    current_date = datetime.now(timezone.utc).strftime("%B %d, %Y")
     st.markdown(f'<div class="fixed-footer"><b>© 2026 Call Log Management System | Version 1.0.0 | Date: {current_date}</b></div>', unsafe_allow_html=True)
 
 
@@ -67,8 +68,8 @@ def _render_register_tab(repo):
                 st.error("Username and password are required!")
             elif reg_password != reg_password_confirm:
                 st.error("Passwords do not match!")
-            elif len(reg_password) < 6:
-                st.error("Password must be at least 6 characters long!")
+            elif len(reg_password) < 8:
+                st.error("Password must be at least 8 characters long!")
             else:
                 success, message = register_user(repo, reg_username, reg_password)
                 if success:
@@ -94,15 +95,14 @@ def _render_login_tab(repo):
                 st.error("Username and password are required!")
             else:
                 success, message, user_data = login_user(repo, login_username, login_password)
-                if success:
+                if success and user_data:
                     st.session_state.authenticated = True
-                    st.session_state.current_user = user_data
+                    st.session_state.current_user = user_data.to_dict()
                     
                     # Save authentication state to bootstrap config
-                    from utils.bootstrap_config import load_bootstrap, save_bootstrap
                     bootstrap_config = load_bootstrap()
                     if bootstrap_config:
-                        bootstrap_config.authenticated_user = login_username
+                        bootstrap_config.authenticated_user = user_data.username
                         save_bootstrap(bootstrap_config)
                     
                     st.success(message)
@@ -134,8 +134,8 @@ def _render_reset_tab(repo):
                 st.error("Username and new password are required!")
             elif reset_new_password != reset_confirm_password:
                 st.error("Passwords do not match!")
-            elif len(reset_new_password) < 6:
-                st.error("Password must be at least 6 characters long!")
+            elif len(reset_new_password) < 8:
+                st.error("Password must be at least 8 characters long!")
             else:
                 success, message = reset_password(repo, reset_username, reset_new_password)
                 if success:
