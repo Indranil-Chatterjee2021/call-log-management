@@ -13,8 +13,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from utils.df_formatter import df_from_records
 from time import sleep
+from utils import df_from_records
 
 # Main Render Function
 def render_reports_page(repo):
@@ -38,10 +38,13 @@ def render_reports_page(repo):
             end_date = st.date_input("End Date", value=None, key="end_date")
         
         # 3. Apply the filter (None values result in all data being fetched)
-        dr = DateRange(
-            start=datetime.combine(start_date, datetime.min.time()) if start_date else None,
-            end=datetime.combine(end_date, datetime.max.time()) if end_date else None,
-        )
+        if start_date and end_date:
+            dr = DateRange(
+                start=datetime.combine(start_date, datetime.min.time()),
+                end=datetime.combine(end_date, datetime.max.time()),
+            )
+        else:
+            dr = None
         
         # 4. Get the DataFrame
         df = df_from_records(repo.calllog_list(dr))
@@ -51,7 +54,7 @@ def render_reports_page(repo):
             st.dataframe(df, use_container_width=True, hide_index=True)
             st.info(f"Total records: {len(df)}")
 
-            buffer = create_formatted_excel(df, sheet_name="CallLogReport")
+            buffer = _create_formatted_excel(df, sheet_name="CallLogReport")
             
             exp_col1, exp_col2 = st.columns([1.5, 8.5])
             with exp_col1:
@@ -132,7 +135,7 @@ def _render_email_section(buffer):
 
 
 # Helper Function to create formatted Excel
-def create_formatted_excel(df: pd.DataFrame, sheet_name: str = 'CallLogEntries') -> io.BytesIO:
+def _create_formatted_excel(df: pd.DataFrame, sheet_name: str = 'CallLogEntries') -> io.BytesIO:
     buffer = io.BytesIO()
     
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:

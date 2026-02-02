@@ -7,19 +7,35 @@ import streamlit as st
 from typing import Optional, Tuple
 from utils.data_models import User, get_now
 
-# Access the username from the stored dictionary
-user_info = st.session_state.get('current_user', {})
-username = user_info.get('username', 'System')
+def get_logged_in_user(user_data: dict | None = None) -> str:
+    """Safely retrieves or updates the current username in session state."""
+    
+    # 1. If new user_data is provided, update the session state
+    if user_data and isinstance(user_data, dict):
+        # Use .get() to avoid KeyErrors if 'username' is missing
+        st.session_state['current_user'] = user_data.get('username', 'System')
+        return st.session_state['current_user']
+    
+    # 2. If no new data, try to retrieve from session state
+    current = st.session_state.get('current_user')
+    
+    # 3. Handle cases where current_user is a dict or just a string
+    if isinstance(current, dict):
+        return current.get('username', 'System')
+    elif isinstance(current, str):
+        return current
+        
+    return "System"
 
 
-def hash_password(password: str) -> str:
+def _hash_password(password: str) -> str:
     """Hash a password using SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 
-def verify_password(password: str, hashed_password: str) -> bool:
+def _verify_password(password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    return hash_password(password) == hashed_password
+    return _hash_password(password) == hashed_password
 
 
 def register_user(repo, username: str, password: str) -> Tuple[bool, str]:
@@ -34,7 +50,7 @@ def register_user(repo, username: str, password: str) -> Tuple[bool, str]:
             return False, "Username already exists"
         
         # Hash the password
-        hashed_pw = hash_password(password)
+        hashed_pw = _hash_password(password)
         
         # Create user record
         new_user = User(
@@ -65,7 +81,7 @@ def login_user(repo, username: str, password: str) -> Tuple[bool, str, Optional[
             return False, "Invalid username or password", None
         
         # Verify password
-        if verify_password(password, user.password):
+        if _verify_password(password, user.password):
             return True, "Login successful!", user
         else:
             return False, "Invalid username or password", None
@@ -85,7 +101,7 @@ def reset_password(repo, username: str, new_password: str) -> Tuple[bool, str]:
             return False, "Username not found"
         
         # 2. Hash the new password
-        hashed_pw = hash_password(new_password)
+        hashed_pw = _hash_password(new_password)
         
         # 3. Perform the update
         # update user record

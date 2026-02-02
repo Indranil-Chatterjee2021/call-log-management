@@ -1,19 +1,10 @@
 from __future__ import annotations
-
-import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional, Tuple
-
-from typing import TYPE_CHECKING
-
+from typing import Literal, Optional, Tuple
 from pymongo import MongoClient
 
-# import app  # noqa: F401
-
-
 Backend = Literal["mongodb"]
-
 
 @dataclass
 class MongoSettings:
@@ -21,14 +12,12 @@ class MongoSettings:
     database: str
     backup_path: str
 
-
 @dataclass
 class ActivationInfo:
     name: str
     email: str
     mobile: str
     key: str
-
 
 @dataclass
 class AppSettings:
@@ -52,7 +41,7 @@ def test_mongo_connection(mongoSettings: MongoSettings) -> Tuple[bool, str]:
         return False, f"MongoDB connection failed: {e}"
 
 
-def save_settings_to_mongo(appSettings: AppSettings) -> None:
+def _save_settings_to_mongo(appSettings: AppSettings) -> None:
     if not appSettings.mongodb:
         raise ValueError("Missing MongoDB settings")
     uri, database = (appSettings.mongodb.uri, appSettings.mongodb.database)
@@ -64,7 +53,6 @@ def save_settings_to_mongo(appSettings: AppSettings) -> None:
         # This converts the dataclass to a dict, including the nested activation field
         appSettings.createdAt = datetime.utcnow()
         appConfig = asdict(appSettings)
-        print(f"appSettings: {appConfig}")
         # We use $set so we don't accidentally wipe existing fields like 'createdAt'
         col.update_one({"_id": "active"}, {"$set": appConfig}, upsert=True)
     finally:
@@ -73,6 +61,6 @@ def save_settings_to_mongo(appSettings: AppSettings) -> None:
 
 def save_settings(appSettings: AppSettings) -> None:
     if appSettings.backend == "mongodb":
-        save_settings_to_mongo(appSettings)
+        _save_settings_to_mongo(appSettings)
     else:
         raise ValueError(f"Unsupported backend: {appSettings.backend}")

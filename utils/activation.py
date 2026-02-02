@@ -1,9 +1,15 @@
+import base64
 import streamlit as st
 import hashlib
 import time
 import subprocess
 import os
 from datetime import datetime
+
+def _get_internal_vault():
+    obfuscated = "SU1QLUFMUEhBLTk3OS1CRVRBLTc4NjctS0VZLTIwMjYtWEFHS1c=" 
+    return base64.b64decode(obfuscated).decode()
+
 
 def get_hardware_id():
     """Generates a unique 16-char Hardware ID based on machine UUID."""
@@ -20,11 +26,12 @@ def get_hardware_id():
     except:
         # Fallback for Streamlit Cloud (where hardware access is restricted)
         return "CLOUD-ENV-INSTANCE"
+    
 
 def verify_key(email, mobile, hwid, provided_key):
     """Verifies key against Email + Mobile + Hardware ID using Environment Secrets."""
     
-    secret = st.secrets.get("ACTIVATION_SECRET") or os.getenv("ACTIVATION_SECRET")
+    secret = secret = _get_internal_vault()
     
     if not secret:
         print("Error: ACTIVATION_SECRET not configured.")
@@ -44,6 +51,7 @@ def verify_key(email, mobile, hwid, provided_key):
     expected_key = f"{h[:4]}-{h[4:8]}-{h[8:12]}-{h[12:16]}"
     return provided_key.strip().upper() == expected_key
 
+
 def render_activation_ui(repo=None):
     hwid = get_hardware_id()
     
@@ -54,13 +62,25 @@ def render_activation_ui(repo=None):
             header { visibility: hidden; }
             .centered-header { text-align: center; padding: 10px; font-size: 2rem; font-weight: bold; }
             .centered-info { text-align: center; color: #555; margin-bottom: 20px; }
+                
+            /* Center text in ALL text inputs */
+            div[data-testid="stTextInput"] input {
+                text-align: center;
+                font-weight: bold;
+            }    
+
+            /* Target the disabled input field (Serial No) */
+            div[data-testid="stTextInput"] input:disabled {
+                color: #FF8C00 !important;
+                -webkit-text-fill-color: #FF8C00 !important; /* Required for some browsers */
+            }
         </style>
         <div class="centered-header">🛡️ Application Activation</div>
     """, unsafe_allow_html=True)
 
-    _, center_col, _ = st.columns([1, 2, 1])
+    _, center_col, _ = st.columns([1, 4, 1])
     current_date = datetime.now().strftime("%B %d, %Y")
-    st.markdown(f'<div class="fixed-footer"><b>© 2026 Call Log Management System | Version 1.0.0 | Date: {current_date}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="fixed-footer"><b>© 2026 Call Log Management System | Version 1.0.0 | Date: {current_date} | Developed By: Indranil Chatterjee</b></div>', unsafe_allow_html=True)
     
     with center_col:
         with st.form("activation_form"):
@@ -85,7 +105,7 @@ def render_activation_ui(repo=None):
             )
             
             # Create three columns; the middle one will contain the centered button
-            col1, col2, col3 = st.columns([1, 2.4, 1])
+            col1, col2, col3 = st.columns([1, 1.5, 1])
 
             with col2:
                 submit = st.form_submit_button("Activate Application", use_container_width=True)

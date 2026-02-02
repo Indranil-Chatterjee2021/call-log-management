@@ -58,8 +58,8 @@ def render_about_page():
     with col1:
         st.markdown("### 👨‍💻 Developed By")
         st.write("**Indranil Chatterjee**")
-        st.write("Email: indranil.chatterjee@gmail.com")
-        st.caption("Version 1.0.0 | Release: January 2026")
+        st.write("Email: indranil.ranaghat@gmail.com")
+        st.caption("Version 1.0.0 | Release: February 2026")
     
     with col2:
         st.markdown("### 🛠️ Technology Stack")

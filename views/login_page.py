@@ -4,8 +4,9 @@ Handles user registration, login, and password reset
 """
 import streamlit as st
 from datetime import datetime, timezone
-from utils.auth import register_user, login_user, reset_password, check_users_exist
-from utils.bootstrap_config import load_bootstrap, save_bootstrap
+from utils import ( 
+    get_logged_in_user, register_user, login_user, reset_password, check_users_exist, load_bootstrap, save_bootstrap
+)
 
 form_width = 1200
 
@@ -49,7 +50,7 @@ def render_login_page(repo):
     
     # Footer
     current_date = datetime.now(timezone.utc).strftime("%B %d, %Y")
-    st.markdown(f'<div class="fixed-footer"><b>© 2026 Call Log Management System | Version 1.0.0 | Date: {current_date}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="fixed-footer"><b>© 2026 Call Log Management System | Version 1.0.0 | Date: {current_date} | Developed By: Indranil Chatterjee</b></div>', unsafe_allow_html=True)
 
 
 def _render_register_tab(repo):
@@ -96,10 +97,17 @@ def _render_login_tab(repo):
             else:
                 success, message, user_data = login_user(repo, login_username, login_password)
                 if success and user_data:
-                    st.session_state.authenticated = True
-                    st.session_state.current_user = user_data.to_dict()
+                    # 1. Convert object to dictionary
+                    user_dict = user_data.to_dict()
                     
-                    # Save authentication state to bootstrap config
+                    # 2. Call your helper to set 'current_user' in session_state safely
+                    # This ensures 'username' is extracted and stored as a string
+                    get_logged_in_user(user_dict)
+                    
+                    # 3. Mark as authenticated and proceed
+                    st.session_state.authenticated = True
+                    
+                    # 4. Save authentication state to bootstrap config
                     bootstrap_config = load_bootstrap()
                     if bootstrap_config:
                         bootstrap_config.authenticated_user = user_data.username
