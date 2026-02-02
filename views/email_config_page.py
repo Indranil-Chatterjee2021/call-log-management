@@ -6,6 +6,7 @@ from time import sleep
 import streamlit as st
 import smtplib
 
+from utils import get_logged_in_user
 from utils.data_models import EmailConfig, get_now
 
 def render_email_config_page():
@@ -20,8 +21,7 @@ def render_email_config_page():
     repo = st.session_state.active_repo
 
     # Access the username from the stored dictionary
-    user_info = st.session_state.get('current_user', {})
-    username = user_info.get('username', 'System')
+    username = get_logged_in_user()
     
     # Load existing config from the active repository
     existing_config = repo.email_config_get()

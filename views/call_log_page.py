@@ -6,13 +6,13 @@ import streamlit as st
 from datetime import datetime
 from time import sleep
 
+from utils import get_logged_in_user
 from utils.data_models import CallLog, MasterRecord
 
 def render_call_log_page(repo, dropdowns):
     st.subheader("📝 Enter New Call Log Entry")
     # Access the username from the stored dictionary
-    user_info = st.session_state.get('current_user', {})
-    username = user_info.get('username', 'System')
+    username = get_logged_in_user()
 
     if st.session_state.get('reset_search_now', False):
         st.session_state["search_mobile_key"] = ""

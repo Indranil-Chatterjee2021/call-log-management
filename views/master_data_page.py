@@ -6,8 +6,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from dataclasses import asdict
-from utils.data_models import MasterRecord, MetadataConfig, get_now
-from utils.df_formatter import df_from_records
+from utils import get_logged_in_user, df_from_records, get_now
+from utils.data_models import MasterRecord, MetadataConfig
 
 INDIAN_STATES = [
     "ANDHRA PRADESH", "ARUNACHAL PRADESH", "ASSAM", "BIHAR", "CHHATTISGARH", 
@@ -28,9 +28,8 @@ def render_master_data_page(repo, dropdowns):
         dropdowns: Dictionary of dropdown values
     """
     st.subheader("📂 Masters Management")
-    # Access the username from the stored dictionary
-    user_info = st.session_state.get('current_user', {})
-    username = user_info.get('username', 'System')
+    # Access the username from the stored dictionar
+    username = get_logged_in_user()
     
     # Display success message if it exists (from previous operation)
     if 'master_success_msg' in st.session_state:
@@ -75,23 +74,58 @@ def render_master_data_page(repo, dropdowns):
 
 
 def _render_view_all_tab(repo, username):
-    """Render view all records tab."""
+    """Render view all records tab with aligned pagination."""
     st.subheader("📋 All Master Records")
     try:
         records = repo.master_list()
         df = df_from_records(records, is_master=True)
-        st.dataframe(df, use_container_width=True, hide_index=True)
         
-        # Display total records and import section
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.info(f"Total records: {len(df)}")
-        
-        # Import section - show only if no data exists
         if len(df) == 0:
+            st.info("Total records: 0")
             st.divider()
-            st.subheader("📥 Import Master Data from Excel")
             _handle_excel_import(repo, username)
+            return
+
+        # Pagination Logic
+        rows_per_page = 25
+        total_pages = (len(df) - 1) // rows_per_page + 1
+        
+        if 'master_page_num' not in st.session_state:
+            st.session_state.master_page_num = 1
+
+        start_idx = (st.session_state.master_page_num - 1) * rows_per_page
+        end_idx = start_idx + rows_per_page
+
+        # 1. Display Dataframe
+        st.dataframe(df.iloc[start_idx:end_idx], use_container_width=True, hide_index=True)
+        
+        # 2. Record Count Indicator
+        st.info(f"Showing {start_idx + 1} to {min(end_idx, len(df))} of {len(df)} records")
+        
+        # 3. Aligned Pagination Controls
+        # We use a 5-column layout to center the "Page X of Y" text perfectly
+        col1, col2, col3, col4, col5 = st.columns([1.4, 1.5, 2, 1, 1.5])
+        
+        with col2:
+            if st.button("<< Previous", use_container_width=True):
+                if st.session_state.master_page_num > 1:
+                    st.session_state.master_page_num -= 1
+                    st.rerun()
+
+        with col3:
+            # Centering the text inside the middle column
+            st.markdown(
+                f"<h3 style='text-align: center; font-size: 16px; margin-top: 5px;'>"
+                f"Page {st.session_state.master_page_num} of {total_pages}"
+                f"</h3>", 
+                unsafe_allow_html=True
+            )
+
+        with col4:
+            if st.button("Next >>", use_container_width=True):
+                if st.session_state.master_page_num < total_pages:
+                    st.session_state.master_page_num += 1
+                    st.rerun()
                
     except Exception as e:
         st.error(f"Error loading data: {e}")

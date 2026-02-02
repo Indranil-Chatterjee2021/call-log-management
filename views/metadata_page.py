@@ -5,8 +5,10 @@ Handles management of dropdown values used throughout the application
 import streamlit as st
 import pandas as pd
 
+from utils import get_logged_in_user
 
-def get_cell_info(df: pd.DataFrame, cell):
+
+def _get_cell_info(df: pd.DataFrame, cell):
     """
     Normalize Streamlit dataframe cell selection.
     Returns: (row_idx, col_name, cell_value) or (None, None, None)
@@ -37,8 +39,7 @@ def get_cell_info(df: pd.DataFrame, cell):
 
 def render_metadata_page(repo, dropdowns):
     # Access the username from the stored dictionary
-    user_info = st.session_state.get('current_user', {})
-    username = user_info.get('username', 'System')
+    username = get_logged_in_user()
     # Initialize a version counter to force-refresh the table when needed
     if 'table_version' not in st.session_state:
         st.session_state.table_version = 0
@@ -134,7 +135,7 @@ def render_metadata_page(repo, dropdowns):
 
           # 3. If a new cell was clicked, toggle it in our permanent memory
           for cell in newly_clicked:
-              row_idx, col_name, val = get_cell_info(df_all, cell)
+              row_idx, col_name, val = _get_cell_info(df_all, cell)
               
               if col_name and val and str(val).strip() != "":
                   db_key = display_options.get(col_name)

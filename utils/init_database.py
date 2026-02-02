@@ -8,14 +8,14 @@ from dotenv import load_dotenv
 
 from storage import get_repository
 
-def create_tables():
+def _create_tables():
     """Create Master, CallLogEntries, MiscData, and AppConfig tables"""
     load_dotenv()
     # Ensure MongoDB collections/indexes via the MongoRepository initialization
     get_repository()
     return True, "MongoDB collections/indexes verified."
 
-def import_master_data(repo=None):
+def _import_master_data(repo=None):
     """Import data from Master sheet into database
     
     Returns:

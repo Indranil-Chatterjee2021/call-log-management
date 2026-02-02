@@ -1,8 +1,15 @@
+/* Force the root to ignore system color schemes */
+:root {
+  color-scheme: dark !important;
+}
+
 /* 1. Reset & Global Header/Footer */
 html, body, [data-testid="stAppViewContainer"] {
   overflow: hidden; /* This prevents the main window from scrolling */
   min-height: 100vh;
   /* Black -> deep blue gradient background for main page */
+  background-color: #000000 !important;
+  background-image: linear-gradient(180deg, #000000 0%, #001f3f 60%, #002b54 100%) !important;
   background: linear-gradient(180deg, #000000 0%, #001f3f 60%, #002b54 100%);
   color: #E6F0FF; /* light text for contrast */
 }
@@ -14,6 +21,13 @@ header[data-testid="stHeader"] {
 /* Hide default Streamlit sidebar navigation */
 section[data-testid="stSidebar"] {
   display: none;
+}
+
+/* Ensure text inputs don't turn white with dark text in light mode */
+input, select, textarea {
+  background-color: #1e1e1e !important;
+  color: #E6F0FF !important;
+  border: 1px solid #333 !important;
 }
 
 .title-bar {
@@ -53,18 +67,19 @@ section[data-testid="stSidebar"] {
   height: 40px;
   /* dark blue gradient to match page theme */
   background: linear-gradient(90deg, #00111a 0%, #002b54 60%, #003366 100%);
-  font-size: medium;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
-  color: #e6f0ff;
+  font-size: 16px;
+  font-family: 'Times New Roman', Times, serif;
+  color: #FF8C00;
   border-top: 1px solid rgba(255,255,255,0.03);
   z-index: 999999;
   text-align: center;
   line-height: 40px;
+  display: block !important;
 }
 
 /* 2. CENTER THE MAIN CONTENT AREA */
 .main .block-container {
-  padding-top: 2rem;
+  padding-top: 10px !important;
   padding-bottom: 0px;
   max-width: 1200px !important;
   height: 100vh;
@@ -76,7 +91,7 @@ section[data-testid="stSidebar"] {
     justify-content: center;
     align-items: center;
     text-align: center;
-    margin-top: -20px !important; 
+    margin-top: 40px !important; 
     margin-bottom: 10px !important;
     color: #9be6ff;
     font-weight: bold;
@@ -149,21 +164,39 @@ p, li, span, label {
 
 /* 10. Navigation bar (option_menu) background */
 .streamlit-option-menu, .option-menu {
-  background: linear-gradient(90deg, rgba(0,17,26,0.6) 0%, rgba(0,43,84,0.6) 60%, rgba(0,51,102,0.6) 100%) !important;
-  padding: 6px !important;
-  border-radius: 8px !important;
+  background: linear-gradient(90deg, rgba(0,17,26,0.85) 0%, rgba(0,43,84,0.85) 60%, rgba(0,51,102,0.85) 100%) !important;
+  padding: 8px !important;
+  border-radius: 14px !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45) !important;
+  backdrop-filter: blur(6px) saturate(120%) !important;
+  border: 1px solid rgba(255,255,255,0.04) !important;
+  max-width: 920px !important;
+  margin: 0 auto !important; /* keep centered */
 }
 
+/* Nav item appearance + spacing */
 .nav-link, .nav-link > a {
   background: transparent !important;
   color: #e6f0ff !important;
+  border-radius: 10px !important;
+  padding: 8px 12px !important;
+  margin: 2px !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
+/* Hover for nav items */
+.nav-link:hover, .nav-link > a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.28);
+}
+
+/* Selected tab: rounded with stronger gradient */
 .nav-link-selected, .nav-link-selected > a {
-  background: linear-gradient(90deg, #003366 0%, #004080 100%) !important;
+  background: linear-gradient(90deg, #003366 0%, #2e7bcf 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5) !important;
-  border-radius: 6px !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45) !important;
+  border-radius: 10px !important;
+  padding: 8px 14px !important;
 }
 
 /* Red Delete Button Fix */
